@@ -1,0 +1,32 @@
+name: Actualizar Classificações
+
+on:
+  # Corre todos os dias às 07:00 UTC (08:00 Portugal)
+  schedule:
+    - cron: '0 7 * * *'
+  # Permite correr manualmente pelo GitHub
+  workflow_dispatch:
+
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repositório
+        uses: actions/checkout@v4
+
+      - name: Instalar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Actualizar classificações
+        run: python actualizar.py
+
+      - name: Guardar HTML actualizado
+        run: |
+          git config user.name "Elite Lab Bot"
+          git config user.email "bot@elitelab.pro"
+          git add index.html
+          git diff --staged --quiet || git commit -m "Auto: classificações actualizadas $(date -u '+%d/%m/%Y %H:%M UTC')"
+          git push

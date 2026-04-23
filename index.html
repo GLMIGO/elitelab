@@ -1,0 +1,2627 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FootValue — Análise de Apostas</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --bg2: #1a1d27;
+    --bg3: #22263a;
+    --bg4: #2a2f45;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #f0f2ff;
+    --text2: #9399b8;
+    --text3: #5a6080;
+    --accent: #5b6ef5;
+    --accent2: #7c8cf8;
+    --green: #22c55e;
+    --green-bg: rgba(34,197,94,0.12);
+    --amber: #f59e0b;
+    --amber-bg: rgba(245,158,11,0.12);
+    --red: #ef4444;
+    --red-bg: rgba(239,68,68,0.10);
+    --teal: #14b8a6;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.6; min-height: 100vh; }
+
+  /* SIDEBAR */
+  .layout { display: flex; min-height: 100vh; }
+  .sidebar { width: 200px; background: var(--bg2); border-right: 1px solid var(--border); padding: 20px 0; flex-shrink: 0; display: flex; flex-direction: column; }
+  .logo { padding: 0 16px 20px; border-bottom: 1px solid var(--border); margin-bottom: 14px; }
+  .logo-name { font-size: 16px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; }
+  .logo-sub { font-size: 10px; color: var(--text3); margin-top: 2px; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 16px; cursor: pointer; color: var(--text2); font-size: 12px; border-left: 2px solid transparent; transition: all .15s; user-select: none; }
+  .nav-item:hover { background: var(--bg3); color: var(--text); }
+  .nav-item.active { background: rgba(91,110,245,0.12); color: var(--accent2); border-left-color: var(--accent); }
+  .nav-icon { width: 16px; height: 16px; opacity: .7; flex-shrink: 0; }
+  .nav-section { font-size: 9px; font-weight: 600; color: var(--text3); letter-spacing: .08em; text-transform: uppercase; padding: 12px 16px 5px; }
+  .sidebar-bottom { margin-top: auto; padding: 12px 16px; border-top: 1px solid var(--border); font-size: 10px; color: var(--text3); }
+  .status-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--green); margin-right: 5px; }
+
+  /* MAIN */
+  .main { flex: 1; overflow-y: auto; min-width: 0; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 22px; border-bottom: 1px solid var(--border); background: var(--bg); position: sticky; top: 0; z-index: 10; }
+  .topbar-title { font-size: 14px; font-weight: 600; color: var(--text); }
+  .topbar-sub { font-size: 11px; color: var(--text3); margin-top: 1px; }
+  .model-badges { display: flex; gap: 6px; }
+  .badge { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 20px; border: 1px solid var(--border2); color: var(--text2); letter-spacing: .04em; }
+  .badge.active { background: rgba(91,110,245,0.18); color: var(--accent2); border-color: rgba(91,110,245,0.4); }
+  .content { padding: 20px 22px; max-width: 1000px; }
+
+  /* ── PAINEL DE CLASSIFICAÇÕES (direita) ── */
+  .standings-panel {
+    width: 270px; flex-shrink: 0;
+    background: var(--bg2);
+    border-left: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    height: 100vh; position: sticky; top: 0;
+    overflow: hidden;
+  }
+  .sp-header {
+    padding: 14px 14px 10px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .sp-header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .sp-title { font-size: 10px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: .08em; }
+  .sp-update-btn {
+    font-size: 10px; font-weight: 600; padding: 3px 8px;
+    border-radius: 4px; border: 1px solid var(--border2);
+    background: transparent; color: var(--accent2); cursor: pointer;
+    transition: all .15s;
+  }
+  .sp-update-btn:hover { background: rgba(91,110,245,0.15); }
+  .sp-update-btn.loading { opacity: .5; cursor: not-allowed; }
+  .sp-last-update { font-size: 10px; color: var(--text3); }
+  .sp-league-tabs {
+    display: flex; gap: 2px; flex-wrap: wrap; padding: 0 14px 10px;
+  }
+  .sp-tab {
+    font-size: 9px; font-weight: 600; padding: 3px 6px;
+    border-radius: 3px; cursor: pointer; color: var(--text3);
+    background: transparent; border: 1px solid transparent;
+    transition: all .12s; letter-spacing: .03em;
+  }
+  .sp-tab:hover { color: var(--text2); background: var(--bg3); }
+  .sp-tab.active { color: var(--accent2); background: rgba(91,110,245,0.12); border-color: rgba(91,110,245,0.3); }
+  .sp-body { flex: 1; overflow-y: auto; padding: 0 6px 10px; }
+  .sp-jornada-badge {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 5px 8px; margin: 6px 0 4px;
+    background: var(--bg3); border-radius: 4px;
+    font-size: 10px; color: var(--text3);
+  }
+  .sp-jornada-badge strong { color: var(--text2); }
+  /* Tabela de classificação */
+  .st-table { width: 100%; border-collapse: collapse; font-size: 10px; }
+  .st-table th {
+    padding: 4px 4px 4px 6px; text-align: left;
+    color: var(--text3); font-weight: 600; font-size: 9px;
+    border-bottom: 1px solid var(--border); letter-spacing: .04em;
+    position: sticky; top: 0; background: var(--bg2); z-index: 1;
+  }
+  .st-table th.r { text-align: right; padding-right: 6px; }
+  .st-table td { padding: 4px 4px; border-bottom: 0.5px solid var(--border); }
+  .st-table td.r { text-align: right; padding-right: 6px; color: var(--text2); }
+  .st-row-cl   { background: rgba(91,110,245,0.06); }
+  .st-row-el   { background: rgba(34,197,94,0.05); }
+  .st-row-ecl  { background: rgba(20,184,166,0.05); }
+  .st-row-releg { background: rgba(239,68,68,0.06); }
+  .st-row-po   { background: rgba(245,158,11,0.06); }
+  .st-pos { font-weight: 700; color: var(--text3); width: 16px; text-align: center; }
+  .st-name { color: var(--text); font-weight: 500; max-width: 88px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .st-name.selected { color: var(--accent2); font-weight: 700; }
+  .st-pts { font-weight: 700; color: var(--text); }
+  .st-form { display: flex; gap: 1px; }
+  .sf-w { width: 10px; height: 10px; border-radius: 2px; background: rgba(34,197,94,0.25); color: var(--green); font-size: 7px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .sf-d { width: 10px; height: 10px; border-radius: 2px; background: rgba(245,158,11,0.2); color: var(--amber); font-size: 7px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .sf-l { width: 10px; height: 10px; border-radius: 2px; background: rgba(239,68,68,0.2); color: var(--red); font-size: 7px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .zone-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .zone-cl  { background: var(--accent); }
+  .zone-el  { background: var(--green); }
+  .zone-ecl { background: var(--teal); }
+  .zone-releg { background: var(--red); }
+  .zone-po  { background: var(--amber); }
+  .sp-edit-btn {
+    width: 100%; margin: 8px 0 2px; padding: 6px;
+    font-size: 10px; font-weight: 600; color: var(--accent2);
+    background: rgba(91,110,245,0.08); border: 1px solid rgba(91,110,245,0.25);
+    border-radius: 4px; cursor: pointer; transition: all .15s;
+  }
+  .sp-edit-btn:hover { background: rgba(91,110,245,0.16); }
+  /* Modal de edição */
+  .sp-modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    z-index: 200; display: flex; align-items: center; justify-content: center;
+  }
+  .sp-modal {
+    background: var(--bg2); border: 1px solid var(--border2);
+    border-radius: 10px; width: 480px; max-height: 85vh;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .sp-modal-hdr {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .sp-modal-hdr h3 { font-size: 13px; font-weight: 600; color: var(--text); }
+  .sp-modal-close { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 18px; line-height: 1; }
+  .sp-modal-body { flex: 1; overflow-y: auto; padding: 14px 18px; }
+  .sp-edit-row {
+    display: grid; grid-template-columns: 20px 1fr 44px 44px 44px 44px;
+    gap: 4px; align-items: center; margin-bottom: 5px; font-size: 11px;
+  }
+  .sp-edit-row input {
+    padding: 3px 5px; font-size: 11px; border: 1px solid var(--border2);
+    border-radius: 4px; background: var(--bg3); color: var(--text);
+    text-align: center; width: 100%;
+  }
+  .sp-modal-footer {
+    padding: 12px 18px; border-top: 1px solid var(--border);
+    display: flex; gap: 8px; justify-content: flex-end; flex-shrink: 0;
+  }
+  .btn-cancel { padding: 6px 14px; font-size: 12px; border-radius: 6px; border: 1px solid var(--border2); background: transparent; color: var(--text2); cursor: pointer; }
+  .btn-save { padding: 6px 14px; font-size: 12px; border-radius: 6px; border: none; background: var(--accent); color: white; cursor: pointer; font-weight: 600; }
+
+  /* PANELS */
+  .panel { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 22px; margin-bottom: 16px; }
+  .panel-title { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 14px; }
+
+  /* FORM */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 10px; align-items: end; }
+  .form-grid2 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 10px; }
+  .fg { display: flex; flex-direction: column; gap: 5px; }
+  .fg label { font-size: 11px; color: var(--text2); font-weight: 500; }
+  .fg input, .fg select { background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--radius-sm); padding: 8px 11px; color: var(--text); font-size: 13px; outline: none; transition: border .15s; }
+  .fg input:focus, .fg select:focus { border-color: var(--accent); }
+  .fg select option { background: var(--bg3); }
+  .btn { padding: 9px 20px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; white-space: nowrap; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-primary:disabled { opacity: .4; cursor: not-allowed; }
+  .btn-sm { padding: 5px 12px; font-size: 11px; background: var(--bg4); color: var(--text2); border: 1px solid var(--border2); }
+  .btn-sm:hover { color: var(--text); border-color: var(--border2); background: var(--bg3); }
+
+  /* AGENTS */
+  .agent-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .agent-pill { font-size: 11px; padding: 4px 11px; border-radius: 20px; border: 1px solid var(--border2); color: var(--text3); background: var(--bg3); display: flex; align-items: center; gap: 5px; transition: all .2s; }
+  .agent-pill.active { color: var(--amber); border-color: rgba(245,158,11,0.4); background: var(--amber-bg); }
+  .agent-pill.done { color: var(--green); border-color: rgba(34,197,94,0.4); background: var(--green-bg); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+  .dot.pulse { animation: pulse .8s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+  .log-box { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 12px; color: var(--text3); line-height: 1.9; max-height: 140px; overflow-y: auto; font-family: 'SF Mono', 'Consolas', monospace; }
+  .log-line { border-bottom: 1px solid rgba(255,255,255,0.04); padding: 1px 0; }
+  .log-line:last-child { border: none; }
+  .log-ts { color: var(--text3); margin-right: 6px; }
+  .log-agent { color: var(--accent2); margin-right: 6px; }
+
+  /* METRICS */
+  .metrics-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 16px; }
+  .metric { background: var(--bg3); border-radius: var(--radius-sm); padding: 14px 16px; border: 1px solid var(--border); }
+  .metric-label { font-size: 11px; color: var(--text3); margin-bottom: 6px; }
+  .metric-val { font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; }
+  .metric-sub { font-size: 11px; color: var(--text3); margin-top: 3px; }
+
+  /* MODEL COMPARISON */
+  .model-cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .model-box { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px; }
+  .model-box-title { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .model-box-title .badge { font-size: 10px; }
+  .prob-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .prob-row:last-child { border: none; }
+  .prob-label { font-size: 12px; color: var(--text2); }
+  .prob-val { font-size: 14px; font-weight: 600; color: var(--text); }
+  .prob-bar-wrap { width: 80px; height: 4px; background: var(--bg4); border-radius: 2px; margin: 0 10px; }
+  .prob-bar { height: 4px; border-radius: 2px; background: var(--accent); transition: width .4s; }
+  .consensus-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .consensus-row:last-child { border: none; }
+
+  /* MARKETS */
+  .markets-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+  .mkt { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px; }
+  .mkt-name { font-size: 11px; color: var(--text3); margin-bottom: 8px; }
+  .mkt-prob { font-size: 24px; font-weight: 700; color: var(--text); }
+  .mkt-detail { font-size: 11px; color: var(--text3); margin-top: 4px; }
+  .mkt-badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 20px; margin-top: 8px; }
+  .mkt-badge.value { background: var(--green-bg); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+  .mkt-badge.marginal { background: var(--amber-bg); color: var(--amber); border: 1px solid rgba(245,158,11,0.3); }
+  .mkt-badge.none { background: var(--bg4); color: var(--text3); border: 1px solid var(--border); }
+
+  /* VALUE BETS */
+  .vbet { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .vbet:last-child { border: none; }
+  .vbet-name { font-size: 14px; font-weight: 600; }
+  .vbet-detail { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .vbet-odds { font-size: 18px; font-weight: 700; color: var(--accent2); }
+  .edge-badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; background: var(--green-bg); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+  .kelly-badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; background: var(--amber-bg); color: var(--amber); border: 1px solid rgba(245,158,11,0.3); }
+
+  /* BOOKMAKERS */
+  .bk-section { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+  .bk-card { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px; cursor: pointer; transition: all .15s; }
+  .bk-card:hover { border-color: var(--accent); background: rgba(91,110,245,0.08); }
+  .bk-card.selected { border-color: var(--accent); background: rgba(91,110,245,0.12); }
+  .bk-name { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .bk-url { font-size: 11px; color: var(--accent2); text-decoration: none; }
+  .bk-url:hover { text-decoration: underline; }
+  .bk-margin { font-size: 11px; color: var(--text3); margin-top: 6px; }
+  .bk-odds-row { display: flex; gap: 6px; margin-top: 8px; }
+  .bk-odds-pill { flex: 1; text-align: center; background: var(--bg4); border-radius: 4px; padding: 4px 0; font-size: 12px; font-weight: 600; border: 1px solid var(--border); }
+  .bk-odds-pill.best { background: var(--green-bg); color: var(--green); border-color: rgba(34,197,94,0.3); }
+
+  /* AI */
+  .ai-output { font-size: 13px; color: var(--text2); line-height: 1.8; white-space: pre-wrap; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg) } }
+
+  /* PAGES */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ODDS TRACKER */
+  .odds-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .odds-table th { text-align: left; color: var(--text3); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  .odds-table td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .odds-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .odds-best { color: var(--green); font-weight: 700; }
+  .tag { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 600; }
+  .tag-value { background: var(--green-bg); color: var(--green); }
+  .tag-no { background: var(--bg4); color: var(--text3); }
+
+  /* HISTÓRICO */
+  .hist-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .hist-result { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+  .hist-win { background: var(--green-bg); color: var(--green); }
+  .hist-loss { background: var(--red-bg); color: var(--red); }
+  .hist-void { background: var(--bg4); color: var(--text3); }
+
+  /* TOOLTIP */
+  [title]:hover::after { content: attr(title); position: absolute; background: var(--bg4); border: 1px solid var(--border2); border-radius: 6px; padding: 4px 8px; font-size: 11px; color: var(--text); pointer-events: none; margin-top: 4px; z-index: 100; white-space: nowrap; }
+
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg4) transparent;
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="logo">
+      <div class="logo-name">FootValue</div>
+      <div class="logo-sub" id="logo-epoca">Análise pré-jogo</div>
+    </div>
+    <div class="nav-section">Análise</div>
+    <div class="nav-item active" onclick="showPage('analisar',this)">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      Analisar jogo
+    </div>
+    <div class="nav-item" onclick="showPage('odds',this)">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Comparar odds
+    </div>
+    <div class="nav-section">Plataformas</div>
+    <div class="nav-item" onclick="showPage('bookmakers',this)">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      Casas de apostas
+    </div>
+    <div class="nav-item" onclick="showPage('datahubs',this)">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+      Fontes de dados
+    </div>
+    <div class="nav-section">Gestão</div>
+    <div class="nav-item" onclick="showPage('historico',this)">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      Histórico
+    </div>
+    <div class="sidebar-bottom">
+      <span class="status-dot"></span>Modelos activos
+    </div>
+  </nav>
+
+  <!-- PAINEL DE CLASSIFICAÇÕES (direita) -->
+  <div class="standings-panel" id="standingsPanel">
+    <div class="sp-header">
+      <div class="sp-header-top">
+        <span class="sp-title">Classificações</span>
+        <button class="sp-update-btn" id="spUpdateBtn" onclick="triggerStandingsUpdate()">↻ Actualizar</button>
+      </div>
+      <div id="spApiStatus" style="font-size:9px;margin-bottom:3px;color:var(--green)">✓ API conectada — football-data.org</div>
+      <div class="sp-last-update" id="spLastUpdate">A sincronizar…</div>
+    </div>
+    <div class="sp-league-tabs" id="spTabs"></div>
+    <div class="sp-body" id="spBody"></div>
+  </div>
+
+  <!-- MODAL DE EDIÇÃO DE RESULTADOS -->
+  <div class="sp-modal-overlay" id="spModal" style="display:none">
+    <div class="sp-modal">
+      <div class="sp-modal-hdr">
+        <h3 id="spModalTitle">Editar classificação</h3>
+        <button class="sp-modal-close" onclick="closeStandingsModal()">×</button>
+      </div>
+      <div class="sp-modal-body" id="spModalBody"></div>
+      <div class="sp-modal-footer">
+        <button class="btn-cancel" onclick="closeStandingsModal()">Cancelar</button>
+        <button class="btn-save" onclick="saveStandingsEdit()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title" id="topbar-title">Analisar jogo</div>
+        <div class="topbar-sub" id="topbar-sub">Poisson + Dixon-Coles · 4 agentes</div>
+      </div>
+      <div class="model-badges">
+        <span class="badge active">Poisson</span>
+        <span class="badge active">Dixon-Coles</span>
+        <span class="badge active">Value Betting</span>
+        <span class="badge active">Kelly</span>
+      </div>
+    </div>
+    <div class="content">
+
+      <!-- PAGE: ANALISAR -->
+      <div class="page active" id="page-analisar">
+
+        <div class="panel">
+          <div class="panel-title">Configurar jogo</div>
+          <div class="form-grid">
+            <div class="fg"><label>Equipa casa</label>
+              <select id="home"></select>
+            </div>
+            <div class="fg"><label>Equipa fora</label>
+              <select id="away"></select>
+            </div>
+            <div class="fg"><label>Liga</label>
+              <select id="league" onchange="updateTeams()">
+                <option value="Liga Portugal">Liga Portugal</option>
+                <option value="Premier League">Premier League</option>
+                <option value="La Liga">La Liga</option>
+                <option value="Bundesliga">Bundesliga</option>
+                <option value="Serie A">Serie A</option>
+                <option value="Ligue 1">Ligue 1</option>
+                <option value="Eredivisie">Eredivisie</option>
+              </select>
+            </div>
+            <div class="fg"><label>Época</label>
+              <select id="epoca">
+                <option value="2025/2026">2025/2026</option>
+                <option value="2024/2025">2024/2025</option>
+                <option value="2023/2024">2023/2024</option>
+                <option value="2022/2023">2022/2023</option>
+              </select>
+            </div>
+            <div class="fg" style="align-self:end"><button class="btn btn-primary" id="analyseBtn" onclick="runAnalysis()">Analisar →</button></div>
+          </div>
+          <div class="form-grid2" style="margin-top:12px">
+            <div class="fg"><label>Odds 1 (casa)</label><input type="number" id="oH" step="0.01" min="1" value="2.10"></div>
+            <div class="fg"><label>Odds X (empate)</label><input type="number" id="oD" step="0.01" min="1" value="3.30"></div>
+            <div class="fg"><label>Odds 2 (fora)</label><input type="number" id="oA" step="0.01" min="1" value="3.60"></div>
+            <div class="fg"><label>Odds Over 2.5</label><input type="number" id="oOU" step="0.01" min="1" value="1.85"></div>
+            <div class="fg"><label>Odds BTTS Sim</label><input type="number" id="oBTTS" step="0.01" min="1" value="1.70"></div>
+          </div>
+          <div class="form-grid2" style="margin-top:8px">
+            <div class="fg"><label>Odds HA −0.5</label><input type="number" id="oHA" step="0.01" min="1" value="1.72"></div>
+            <div class="fg"><label>Odds HA +0.5</label><input type="number" id="oHAaway" step="0.01" min="1" value="2.10"></div>
+            <div class="fg"><label>Banca (€)</label><input type="number" id="bankroll" step="10" min="10" value="500"></div>
+            <div class="fg"></div><div class="fg"></div>
+          </div>
+          <div style="border-top:1px solid var(--border);margin:14px 0 10px;"></div>
+          <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">Contexto de tabela &amp; envolvência</div>
+          <div id="contextPreview"></div>
+          <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin:10px 0">
+            <div class="fg"><label>Pos. casa</label><input type="number" id="posH" min="1" max="20" value="3"></div>
+            <div class="fg"><label>Pts casa</label><input type="number" id="ptsH" min="0" max="114" value="60"></div>
+            <div class="fg"><label>Pos. fora</label><input type="number" id="posA" min="1" max="20" value="8"></div>
+            <div class="fg"><label>Pts fora</label><input type="number" id="ptsA" min="0" max="114" value="40"></div>
+            <div class="fg"><label>Jornada</label><input type="number" id="jornada" min="1" max="38" value="28"></div>
+            <div class="fg"><label>Total jornadas</label><input type="number" id="totalJornadas" min="18" max="38" value="34"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px">
+            <div class="fg"><label>Equipas na liga</label><input type="number" id="totalTeams" min="16" max="20" value="18"></div>
+            <div class="fg"><label>Motivação equipa casa</label>
+              <select id="motivH">
+                <option value="normal">Normal — meio da tabela</option>
+                <option value="titulo">Luta pelo título</option>
+                <option value="europa_cl">Acesso Champions League</option>
+                <option value="europa_el">Acesso Europa League</option>
+                <option value="europa_ecl">Acesso Conference League</option>
+                <option value="despromocao">Luta contra a descida</option>
+                <option value="ja_desceu">Já desceu / matematicamente despromovido</option>
+                <option value="ja_campeao">Já campeão / objectivo cumprido</option>
+                <option value="rivalidade">Dérbi / rivalidade histórica</option>
+              </select>
+            </div>
+            <div class="fg"><label>Motivação equipa fora</label>
+              <select id="motivA">
+                <option value="normal">Normal — meio da tabela</option>
+                <option value="titulo">Luta pelo título</option>
+                <option value="europa_cl">Acesso Champions League</option>
+                <option value="europa_el">Acesso Europa League</option>
+                <option value="europa_ecl">Acesso Conference League</option>
+                <option value="despromocao">Luta contra a descida</option>
+                <option value="ja_desceu">Já desceu / matematicamente despromovido</option>
+                <option value="ja_campeao">Já campeão / objectivo cumprido</option>
+                <option value="rivalidade">Dérbi / rivalidade histórica</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" id="historyPanel">
+        </div>
+
+        <div class="panel" id="agentPanel" style="display:none">
+          <div class="panel-title">Agentes a correr</div>
+          <div class="agent-row" id="agentPills">
+            <span class="agent-pill" id="ag-forma"><span class="dot"></span>Agente Forma</span>
+            <span class="agent-pill" id="ag-stats"><span class="dot"></span>Agente xG/Stats</span>
+            <span class="agent-pill" id="ag-ctx"><span class="dot"></span>Agente Contexto</span>
+            <span class="agent-pill" id="ag-tabela"><span class="dot"></span>Agente Tabela</span>
+            <span class="agent-pill" id="ag-odds"><span class="dot"></span>Agente Odds</span>
+            <span class="agent-pill" id="ag-poisson"><span class="dot"></span>Motor Poisson</span>
+            <span class="agent-pill" id="ag-dc"><span class="dot"></span>Motor Dixon-Coles</span>
+          </div>
+          <div class="log-box" id="logBox"></div>
+        </div>
+
+        <div id="resultsWrap" style="display:none">
+
+          <div class="panel">
+            <div class="panel-title">Métricas do jogo</div>
+            <div class="metrics-row" id="metricsRow"></div>
+            <p style="font-size:13px;color:var(--text2);line-height:1.8" id="summaryText"></p>
+          </div>
+
+          <div class="panel">
+            <div class="panel-title">Contexto de tabela &amp; envolvência — impacto no modelo</div>
+            <div id="tabelaPanel"></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-title">Comparação de modelos — Poisson vs Dixon-Coles</div>
+            <div class="model-cmp" id="modelCmp"></div>
+            <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px">
+              <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Consenso dos modelos</div>
+              <div id="consensusBox"></div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-title">Análise por mercado</div>
+            <div class="markets-grid" id="marketsGrid"></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-title">Value bets &amp; critério de Kelly</div>
+            <div id="valueBets"></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-title">Análise narrativa — IA</div>
+            <div class="ai-output" id="aiOutput"><span class="spinner"></span> A gerar análise...</div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- PAGE: ODDS -->
+      <div class="page" id="page-odds">
+        <div class="panel">
+          <div class="panel-title">Comparação de odds — casas principais</div>
+          <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Insere o jogo na página principal e as odds simuladas aparecem aqui com as melhores destacadas.</p>
+          <table class="odds-table" id="oddsTable">
+            <thead><tr>
+              <th>Casa</th><th>1 (casa)</th><th>X (empate)</th><th>2 (fora)</th><th>Over 2.5</th><th>BTTS</th><th>Margem</th><th>Link</th>
+            </tr></thead>
+            <tbody id="oddsBody">
+              <tr><td colspan="8" style="color:var(--text3);padding:20px 12px">Analisa primeiro um jogo para ver a comparação de odds.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- PAGE: BOOKMAKERS -->
+      <div class="page" id="page-bookmakers">
+        <div class="panel">
+          <div class="panel-title">Casas de apostas — acesso rápido</div>
+          <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Clica em qualquer casa para abrir no browser. Plataformas licenciadas em Portugal (SRIJ).</p>
+          <div class="bk-section" id="bkGrid"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Exchanges &amp; odds comparadores</div>
+          <div class="bk-section" id="bkGrid2"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Configurar atalhos de teclado</div>
+          <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Associa teclas rápidas para abrir as tuas casas favoritas diretamente.</p>
+          <div id="shortcutConfig"></div>
+        </div>
+      </div>
+
+      <!-- PAGE: DATAHUBS -->
+      <div class="page" id="page-datahubs">
+        <div class="panel">
+          <div class="panel-title">Fontes de dados estatísticos</div>
+          <div class="bk-section" id="dataGrid"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">APIs de dados desportivos</div>
+          <div class="bk-section" id="apiGrid"></div>
+        </div>
+      </div>
+
+      <!-- PAGE: HISTORICO -->
+      <div class="page" id="page-historico">
+        <div class="panel">
+          <div class="panel-title">Registo de apostas</div>
+          <div style="display:flex;gap:10px;margin-bottom:16px">
+            <div class="metric" style="flex:1"><div class="metric-label">Total apostas</div><div class="metric-val" id="hTotal">0</div></div>
+            <div class="metric" style="flex:1"><div class="metric-label">Ganhos</div><div class="metric-val" id="hWin" style="color:var(--green)">0</div></div>
+            <div class="metric" style="flex:1"><div class="metric-label">Perdas</div><div class="metric-val" id="hLoss" style="color:var(--red)">0</div></div>
+            <div class="metric" style="flex:1"><div class="metric-label">ROI</div><div class="metric-val" id="hROI">—</div></div>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:16px;align-items:end">
+            <div class="fg" style="flex:1"><label>Jogo</label><input id="hGame" placeholder="ex: Benfica vs Porto"></div>
+            <div class="fg"><label>Mercado</label><select id="hMarket"><option>1 (casa)</option><option>X (empate)</option><option>2 (fora)</option><option>Over 2.5</option><option>BTTS</option><option>HA</option></select></div>
+            <div class="fg"><label>Odds</label><input type="number" id="hOdds" step="0.01" min="1" value="2.10"></div>
+            <div class="fg"><label>Valor (€)</label><input type="number" id="hStake" step="1" min="1" value="10"></div>
+            <div class="fg"><label>Resultado</label><select id="hResult"><option>Win</option><option>Loss</option><option>Void</option></select></div>
+            <div class="fg"><label>&nbsp;</label><button class="btn btn-primary" onclick="addRecord()">Adicionar</button></div>
+          </div>
+          <div id="histList"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/* ── EQUIPAS E DADOS REAIS POR LIGA (J32/33 2025/26 — tabelas reais verificadas) ── */
+
+// Tabela real La Liga após J31 (fonte: PDF oficial + laliga.com)
+// { pos, pts, gf, ga, xgAtt, xgDef, zone }
+const STANDINGS_REAL = {
+  // ── La Liga — J33 2025/26 ──
+  'La Liga': {
+    'Barcelona': { pos: 1, pts: 79, gf: 84, ga: 30, gp:31, w:26, d: 1, l: 4, xgAtt:2.46, xgDef:0.97, zone:'champions', form5:'WWWWW' },
+    'Real Madrid': { pos: 2, pts: 70, gf: 65, ga: 29, gp:31, w:22, d: 4, l: 5, xgAtt:2.21, xgDef:0.93, zone:'champions', form5:'DLDWW' },
+    'Villarreal': { pos: 3, pts: 61, gf: 56, ga: 36, gp:31, w:19, d: 4, l: 8, xgAtt:1.61, xgDef:1.16, zone:'champions', form5:'WWWDL' },
+    'Atlético Madrid': { pos: 4, pts: 57, gf: 51, ga: 32, gp:31, w:17, d: 6, l: 8, xgAtt:1.54, xgDef:1.03, zone:'champions', form5:'WWWWW' },
+    'Real Betis': { pos: 5, pts: 46, gf: 45, ga: 38, gp:31, w:11, d:13, l: 7, xgAtt:1.52, xgDef:1.23, zone:'europa_el', form5:'DWLDL' },
+    'Celta Vigo': { pos: 6, pts: 44, gf: 44, ga: 40, gp:31, w:11, d:11, l: 9, xgAtt:1.39, xgDef:1.29, zone:'conference', form5:'WWLWL' },
+    'Real Sociedad': { pos: 7, pts: 42, gf: 49, ga: 48, gp:31, w:11, d: 9, l:11, xgAtt:1.33, xgDef:1.55, zone:'conference', form5:'WWWWW' },
+    'Getafe': { pos: 8, pts: 41, gf: 27, ga: 32, gp:31, w:12, d: 5, l:14, xgAtt:0.90, xgDef:1.03, zone:'top_mid', form5:'WDWDL' },
+    'Osasuna': { pos: 9, pts: 39, gf: 37, ga: 38, gp:31, w:10, d: 9, l:12, xgAtt:1.37, xgDef:1.23, zone:'top_mid', form5:'WWDDL' },
+    'Espanyol': { pos:10, pts: 38, gf: 37, ga: 48, gp:31, w:10, d: 8, l:13, xgAtt:1.42, xgDef:1.55, zone:'top_mid', form5:'LDLLL' },
+    'Athletic Bilbao': { pos:11, pts: 38, gf: 33, ga: 45, gp:31, w:11, d: 5, l:15, xgAtt:1.56, xgDef:1.45, zone:'top_mid', form5:'LWLLL' },
+    'Girona': { pos:12, pts: 38, gf: 33, ga: 45, gp:31, w: 9, d:11, l:11, xgAtt:1.22, xgDef:1.45, zone:'top_mid', form5:'WDLWL' },
+    'Rayo Vallecano': { pos:13, pts: 35, gf: 29, ga: 38, gp:31, w: 8, d:11, l:12, xgAtt:1.48, xgDef:1.23, zone:'mid', form5:'WWLDL' },
+    'Valencia': { pos:14, pts: 35, gf: 34, ga: 46, gp:31, w: 9, d: 8, l:14, xgAtt:1.43, xgDef:1.48, zone:'mid', form5:'WDLDL' },
+    'Mallorca': { pos:15, pts: 34, gf: 39, ga: 48, gp:31, w: 9, d: 7, l:15, xgAtt:1.30, xgDef:1.55, zone:'mid', form5:'WWWDL' },
+    'Sevilla': { pos:16, pts: 34, gf: 39, ga: 51, gp:31, w: 9, d: 7, l:15, xgAtt:1.19, xgDef:1.65, zone:'mid', form5:'WLWDL' },
+    'Alavés': { pos:17, pts: 33, gf: 35, ga: 46, gp:31, w: 8, d: 9, l:14, xgAtt:1.28, xgDef:1.48, zone:'relegation', form5:'WDLWL' },
+    'Elche': { pos:18, pts: 32, gf: 39, ga: 47, gp:31, w: 7, d:11, l:13, xgAtt:1.28, xgDef:1.52, zone:'relegation', form5:'LWLWL' },
+    'Levante': { pos:19, pts: 29, gf: 35, ga: 50, gp:31, w: 7, d: 8, l:16, xgAtt:1.24, xgDef:1.61, zone:'relegation', form5:'LLLLD' },
+    'Oviedo': { pos:20, pts: 27, gf: 24, ga: 48, gp:31, w: 6, d: 9, l:16, xgAtt:1.09, xgDef:1.77, zone:'relegation', form5:'LLDDL' },
+  },
+  // ── Premier League — J33 2025/26 ──
+  'Premier League': {
+    'Arsenal': { pos: 1, pts: 70, gf: 68, ga: 31, gp:33, w:21, d: 7, l: 5, xgAtt:2.12, xgDef:0.94, zone:'champions', form5:'WWDWL' },
+    'Manchester City': { pos: 2, pts: 67, gf: 71, ga: 35, gp:32, w:21, d: 4, l: 7, xgAtt:2.19, xgDef:1.09, zone:'champions', form5:'WWWLW' },
+    'Manchester United': { pos: 3, pts: 58, gf: 55, ga: 42, gp:33, w:17, d: 7, l: 9, xgAtt:1.67, xgDef:1.27, zone:'champions', form5:'WWLWW' },
+    'Aston Villa': { pos: 4, pts: 58, gf: 52, ga: 46, gp:33, w:17, d: 7, l: 9, xgAtt:1.58, xgDef:1.39, zone:'champions', form5:'LWWWW' },
+    'Liverpool': { pos: 5, pts: 55, gf: 60, ga: 49, gp:33, w:16, d: 7, l:10, xgAtt:1.82, xgDef:1.48, zone:'europa_el', form5:'WWWLW' },
+    'Chelsea': { pos: 6, pts: 48, gf: 58, ga: 47, gp:33, w:14, d: 6, l:13, xgAtt:1.76, xgDef:1.42, zone:'conference', form5:'LWWLW' },
+    'Brentford': { pos: 7, pts: 48, gf: 52, ga: 48, gp:33, w:13, d: 9, l:11, xgAtt:1.58, xgDef:1.45, zone:'top_mid', form5:'WDWLW' },
+    'Bournemouth': { pos: 8, pts: 48, gf: 54, ga: 54, gp:33, w:14, d: 6, l:13, xgAtt:1.64, xgDef:1.64, zone:'top_mid', form5:'WWDLW' },
+    'Brighton': { pos: 9, pts: 47, gf: 55, ga: 49, gp:33, w:13, d: 8, l:12, xgAtt:1.67, xgDef:1.48, zone:'top_mid', form5:'WDWDW' },
+    'Everton': { pos:10, pts: 47, gf: 48, ga: 47, gp:33, w:13, d: 8, l:12, xgAtt:1.45, xgDef:1.42, zone:'top_mid', form5:'DWWWL' },
+    'Sunderland': { pos:11, pts: 46, gf: 50, ga: 54, gp:33, w:13, d: 7, l:13, xgAtt:1.52, xgDef:1.64, zone:'top_mid', form5:'WDLWW' },
+    'Fulham': { pos:12, pts: 45, gf: 49, ga: 52, gp:33, w:13, d: 6, l:14, xgAtt:1.48, xgDef:1.58, zone:'mid', form5:'DWLDW' },
+    'Crystal Palace': { pos:13, pts: 43, gf: 43, ga: 44, gp:32, w:12, d: 7, l:13, xgAtt:1.34, xgDef:1.38, zone:'mid', form5:'WDWDL' },
+    'Newcastle United': { pos:14, pts: 42, gf: 46, ga: 49, gp:33, w:11, d: 9, l:13, xgAtt:1.39, xgDef:1.48, zone:'mid', form5:'LDWDW' },
+    'Leeds United': { pos:15, pts: 39, gf: 48, ga: 55, gp:33, w:11, d: 6, l:16, xgAtt:1.45, xgDef:1.67, zone:'mid', form5:'WDLWL' },
+    'Nottingham Forest': { pos:16, pts: 36, gf: 40, ga: 49, gp:33, w: 9, d: 9, l:15, xgAtt:1.21, xgDef:1.48, zone:'mid', form5:'DLDWL' },
+    'West Ham United': { pos:17, pts: 33, gf: 38, ga: 55, gp:33, w: 8, d: 9, l:16, xgAtt:1.15, xgDef:1.67, zone:'relegation', form5:'DLDWL' },
+    'Tottenham Hotspur': { pos:18, pts: 31, gf: 42, ga: 53, gp:33, w: 8, d: 7, l:18, xgAtt:1.27, xgDef:1.61, zone:'relegation', form5:'LLDWL' },
+    'Burnley': { pos:19, pts: 26, gf: 30, ga: 62, gp:33, w: 7, d: 5, l:21, xgAtt:0.91, xgDef:1.88, zone:'relegation', form5:'LLLWL' },
+    'Wolverhampton': { pos:20, pts: 20, gf: 28, ga: 68, gp:33, w: 5, d: 5, l:23, xgAtt:0.85, xgDef:2.06, zone:'relegation', form5:'LLLLL' },
+  },
+  // ── Bundesliga — J30 2025/26 ──
+  'Bundesliga': {
+    'Bayern München': { pos: 1, pts: 72, gf:112, ga: 29, gp:30, w:23, d: 3, l: 4, xgAtt:3.73, xgDef:0.97, zone:'champions', form5:'WWWWW' },
+    'Borussia Dortmund': { pos: 2, pts: 58, gf: 55, ga: 28, gp:30, w:18, d: 4, l: 8, xgAtt:1.83, xgDef:0.93, zone:'champions', form5:'WWDWW' },
+    'TSG Hoffenheim': { pos: 3, pts: 52, gf: 55, ga: 35, gp:30, w:16, d: 4, l:10, xgAtt:1.83, xgDef:1.17, zone:'champions', form5:'WWWLW' },
+    'VfB Stuttgart': { pos: 4, pts: 52, gf: 53, ga: 38, gp:30, w:16, d: 4, l:10, xgAtt:1.77, xgDef:1.27, zone:'champions', form5:'LWWWW' },
+    'RB Leipzig': { pos: 5, pts: 49, gf: 54, ga: 39, gp:30, w:15, d: 4, l:11, xgAtt:1.80, xgDef:1.30, zone:'europa_el', form5:'WWDLW' },
+    'Bayer Leverkusen': { pos: 6, pts: 45, gf: 50, ga: 36, gp:30, w:14, d: 3, l:13, xgAtt:1.67, xgDef:1.20, zone:'conference', form5:'WWWDL' },
+    'Eintracht Frankfurt': { pos: 7, pts: 39, gf: 54, ga: 55, gp:30, w:11, d: 6, l:13, xgAtt:1.80, xgDef:1.83, zone:'top_mid', form5:'WLWDL' },
+    'SC Freiburg': { pos: 8, pts: 37, gf: 39, ga: 46, gp:30, w:11, d: 4, l:15, xgAtt:1.30, xgDef:1.53, zone:'top_mid', form5:'DLLWW' },
+    'FC Augsburg': { pos: 9, pts: 35, gf: 37, ga: 49, gp:30, w:10, d: 5, l:15, xgAtt:1.23, xgDef:1.63, zone:'top_mid', form5:'DWLWL' },
+    'Union Berlin': { pos:10, pts: 33, gf: 36, ga: 48, gp:30, w: 9, d: 6, l:15, xgAtt:1.20, xgDef:1.60, zone:'mid', form5:'DWLDL' },
+    'Hamburger SV': { pos:11, pts: 32, gf: 35, ga: 46, gp:30, w: 9, d: 5, l:16, xgAtt:1.17, xgDef:1.53, zone:'mid', form5:'DLWDL' },
+    'Borussia Mönchengladbach': { pos:12, pts: 31, gf: 38, ga: 52, gp:30, w: 8, d: 7, l:15, xgAtt:1.27, xgDef:1.73, zone:'mid', form5:'WLLLD' },
+    'Werder Bremen': { pos:13, pts: 30, gf: 37, ga: 53, gp:30, w: 8, d: 6, l:16, xgAtt:1.23, xgDef:1.77, zone:'mid', form5:'LDWLL' },
+    'Mainz': { pos:14, pts: 28, gf: 32, ga: 51, gp:30, w: 7, d: 7, l:16, xgAtt:1.07, xgDef:1.70, zone:'mid', form5:'LLLWL' },
+    '1. FC Köln': { pos:15, pts: 27, gf: 31, ga: 54, gp:30, w: 7, d: 6, l:17, xgAtt:1.03, xgDef:1.80, zone:'playoff_releg', form5:'DLLLD' },
+    'Wolfsburg': { pos:16, pts: 25, gf: 29, ga: 57, gp:30, w: 6, d: 7, l:17, xgAtt:0.97, xgDef:1.90, zone:'relegation', form5:'DLDLL' },
+    'FC St. Pauli': { pos:17, pts: 23, gf: 26, ga: 63, gp:30, w: 6, d: 5, l:19, xgAtt:0.87, xgDef:2.10, zone:'relegation', form5:'LLLLD' },
+    '1. FC Heidenheim': { pos:18, pts: 22, gf: 24, ga: 60, gp:30, w: 6, d: 4, l:20, xgAtt:0.80, xgDef:2.00, zone:'relegation', form5:'LLLWL' },
+  },
+  // ── Serie A — J33 2025/26 ──
+  'Serie A': {
+    'Inter Milan': { pos: 1, pts: 75, gf: 78, ga: 32, gp:32, w:23, d: 6, l: 3, xgAtt:2.44, xgDef:1.00, zone:'champions', form5:'WWWWW' },
+    'Napoli': { pos: 2, pts: 66, gf: 65, ga: 48, gp:32, w:20, d: 6, l: 6, xgAtt:2.03, xgDef:1.50, zone:'champions', form5:'LWWWW' },
+    'AC Milan': { pos: 3, pts: 63, gf: 60, ga: 40, gp:32, w:19, d: 6, l: 7, xgAtt:1.88, xgDef:1.25, zone:'champions', form5:'WWWLW' },
+    'Juventus': { pos: 4, pts: 60, gf: 55, ga: 29, gp:32, w:18, d: 6, l: 8, xgAtt:1.72, xgDef:0.91, zone:'champions', form5:'WWDWW' },
+    'Como': { pos: 5, pts: 58, gf: 67, ga: 37, gp:32, w:17, d: 7, l: 8, xgAtt:2.09, xgDef:1.16, zone:'europa_el', form5:'LWWWL' },
+    'Roma': { pos: 6, pts: 57, gf: 58, ga: 41, gp:32, w:17, d: 6, l: 9, xgAtt:1.81, xgDef:1.28, zone:'conference', form5:'WWWDL' },
+    'Atalanta': { pos: 7, pts: 53, gf: 59, ga: 43, gp:32, w:16, d: 5, l:11, xgAtt:1.84, xgDef:1.34, zone:'top_mid', form5:'WWWDL' },
+    'Bologna': { pos: 8, pts: 48, gf: 50, ga: 45, gp:32, w:14, d: 6, l:12, xgAtt:1.56, xgDef:1.41, zone:'top_mid', form5:'WDLWL' },
+    'Lazio': { pos: 9, pts: 44, gf: 52, ga: 50, gp:32, w:12, d: 8, l:12, xgAtt:1.63, xgDef:1.56, zone:'top_mid', form5:'LWWWL' },
+    'Udinese': { pos:10, pts: 43, gf: 44, ga: 48, gp:32, w:12, d: 7, l:13, xgAtt:1.38, xgDef:1.50, zone:'top_mid', form5:'LDWWL' },
+    'Sassuolo': { pos:11, pts: 42, gf: 46, ga: 50, gp:32, w:12, d: 6, l:14, xgAtt:1.44, xgDef:1.56, zone:'mid', form5:'WDWLW' },
+    'Torino': { pos:12, pts: 39, gf: 38, ga: 55, gp:32, w:10, d: 9, l:13, xgAtt:1.19, xgDef:1.72, zone:'mid', form5:'DDWLD' },
+    'Genoa': { pos:13, pts: 36, gf: 35, ga: 42, gp:32, w:10, d: 6, l:16, xgAtt:1.09, xgDef:1.31, zone:'mid', form5:'DLLWL' },
+    'Parma': { pos:14, pts: 36, gf: 37, ga: 54, gp:32, w:10, d: 6, l:16, xgAtt:1.16, xgDef:1.69, zone:'mid', form5:'LWDWL' },
+    'Fiorentina': { pos:15, pts: 35, gf: 39, ga: 46, gp:32, w: 9, d: 8, l:15, xgAtt:1.22, xgDef:1.44, zone:'mid', form5:'LLLDW' },
+    'Cagliari': { pos:16, pts: 33, gf: 33, ga: 44, gp:32, w: 8, d: 9, l:15, xgAtt:1.03, xgDef:1.38, zone:'mid', form5:'DLLWL' },
+    'Cremonese': { pos:17, pts: 27, gf: 28, ga: 49, gp:32, w: 7, d: 6, l:19, xgAtt:0.88, xgDef:1.53, zone:'relegation', form5:'DLLDL' },
+    'Lecce': { pos:18, pts: 27, gf: 29, ga: 53, gp:32, w: 7, d: 6, l:19, xgAtt:0.91, xgDef:1.66, zone:'relegation', form5:'DLLLD' },
+    'Hellas Verona': { pos:19, pts: 18, gf: 26, ga: 58, gp:32, w: 4, d: 6, l:22, xgAtt:0.81, xgDef:1.81, zone:'relegation', form5:'LLLLL' },
+    'Pisa': { pos:20, pts: 14, gf: 22, ga: 67, gp:32, w: 3, d: 5, l:24, xgAtt:0.69, xgDef:2.09, zone:'relegation', form5:'LLLLL' },
+  },
+  // ── Ligue 1 — J30 2025/26 ──
+  'Ligue 1': {
+    'PSG': { pos: 1, pts: 76, gf: 82, ga: 24, gp:30, w:24, d: 4, l: 2, xgAtt:2.73, xgDef:0.80, zone:'champions', form5:'WWWWW' },
+    'Marseille': { pos: 2, pts: 64, gf: 64, ga: 31, gp:30, w:20, d: 4, l: 6, xgAtt:2.13, xgDef:1.03, zone:'champions', form5:'WWWLW' },
+    'Monaco': { pos: 3, pts: 60, gf: 61, ga: 33, gp:30, w:18, d: 6, l: 6, xgAtt:2.03, xgDef:1.10, zone:'champions', form5:'WWWDW' },
+    'Lille': { pos: 4, pts: 55, gf: 51, ga: 35, gp:30, w:17, d: 4, l: 9, xgAtt:1.70, xgDef:1.17, zone:'europa_el', form5:'WWWLW' },
+    'Lyon': { pos: 5, pts: 48, gf: 46, ga: 37, gp:30, w:14, d: 6, l:10, xgAtt:1.53, xgDef:1.23, zone:'conference', form5:'WDWWL' },
+    'Lens': { pos: 6, pts: 44, gf: 40, ga: 37, gp:30, w:13, d: 5, l:12, xgAtt:1.33, xgDef:1.23, zone:'top_mid', form5:'WWLWL' },
+    'Nice': { pos: 7, pts: 41, gf: 38, ga: 39, gp:30, w:12, d: 5, l:13, xgAtt:1.27, xgDef:1.30, zone:'top_mid', form5:'WLWDL' },
+    'Rennes': { pos: 8, pts: 38, gf: 36, ga: 40, gp:30, w:11, d: 5, l:14, xgAtt:1.20, xgDef:1.33, zone:'top_mid', form5:'WDLWL' },
+    'Strasbourg': { pos: 9, pts: 36, gf: 34, ga: 41, gp:30, w:10, d: 6, l:14, xgAtt:1.13, xgDef:1.37, zone:'top_mid', form5:'WDLWL' },
+    'Brest': { pos:10, pts: 34, gf: 32, ga: 42, gp:30, w: 9, d: 7, l:14, xgAtt:1.07, xgDef:1.40, zone:'mid', form5:'DWWLL' },
+    'Toulouse': { pos:11, pts: 32, gf: 28, ga: 42, gp:30, w: 9, d: 5, l:16, xgAtt:0.93, xgDef:1.40, zone:'mid', form5:'LDWLL' },
+    'Auxerre': { pos:12, pts: 30, gf: 26, ga: 44, gp:30, w: 8, d: 6, l:16, xgAtt:0.87, xgDef:1.47, zone:'mid', form5:'DLLWL' },
+    'Nantes': { pos:13, pts: 28, gf: 24, ga: 46, gp:30, w: 7, d: 7, l:16, xgAtt:0.80, xgDef:1.53, zone:'mid', form5:'DLLLD' },
+    'Reims': { pos:14, pts: 27, gf: 22, ga: 47, gp:30, w: 7, d: 6, l:17, xgAtt:0.73, xgDef:1.57, zone:'mid', form5:'LLWDL' },
+    'Havre': { pos:15, pts: 25, gf: 21, ga: 50, gp:30, w: 6, d: 7, l:17, xgAtt:0.70, xgDef:1.67, zone:'playoff_releg', form5:'DLDLL' },
+    'Angers': { pos:16, pts: 22, gf: 18, ga: 54, gp:30, w: 5, d: 7, l:18, xgAtt:0.60, xgDef:1.80, zone:'relegation', form5:'DLLDL' },
+    'Montpellier': { pos:17, pts: 19, gf: 16, ga: 57, gp:30, w: 4, d: 7, l:19, xgAtt:0.53, xgDef:1.90, zone:'relegation', form5:'LLLLD' },
+    'Saint-Étienne': { pos:18, pts: 16, gf: 15, ga: 62, gp:30, w: 4, d: 4, l:22, xgAtt:0.50, xgDef:2.07, zone:'relegation', form5:'LLLLL' },
+  },
+  // ── Eredivisie — J29 2025/26 ──
+  'Eredivisie': {
+    'PSV Eindhoven': { pos: 1, pts: 74, gf: 95, ga: 23, gp:29, w:23, d: 5, l: 1, xgAtt:3.28, xgDef:0.79, zone:'champions', form5:'WWWWW' },
+    'Ajax': { pos: 2, pts: 68, gf: 77, ga: 30, gp:29, w:21, d: 5, l: 3, xgAtt:2.66, xgDef:1.03, zone:'champions', form5:'WWWWW' },
+    'Feyenoord': { pos: 3, pts: 64, gf: 73, ga: 32, gp:29, w:20, d: 4, l: 5, xgAtt:2.52, xgDef:1.10, zone:'champions', form5:'WWWLW' },
+    'AZ': { pos: 4, pts: 57, gf: 62, ga: 34, gp:29, w:18, d: 3, l: 8, xgAtt:2.14, xgDef:1.17, zone:'europa_el', form5:'WWWDW' },
+    'NEC': { pos: 5, pts: 49, gf: 47, ga: 38, gp:29, w:15, d: 4, l:10, xgAtt:1.62, xgDef:1.31, zone:'conference', form5:'WDWLW' },
+    'Twente': { pos: 6, pts: 46, gf: 44, ga: 39, gp:29, w:14, d: 4, l:11, xgAtt:1.52, xgDef:1.34, zone:'top_mid', form5:'WWLWL' },
+    'Utrecht': { pos: 7, pts: 41, gf: 40, ga: 40, gp:29, w:13, d: 2, l:14, xgAtt:1.38, xgDef:1.38, zone:'top_mid', form5:'WLWDL' },
+    'Sparta Rotterdam': { pos: 8, pts: 37, gf: 35, ga: 42, gp:29, w:11, d: 4, l:14, xgAtt:1.21, xgDef:1.45, zone:'top_mid', form5:'WDWLL' },
+    'Go Ahead Eagles': { pos: 9, pts: 34, gf: 32, ga: 42, gp:29, w:10, d: 4, l:15, xgAtt:1.10, xgDef:1.45, zone:'top_mid', form5:'WLWDL' },
+    'Heerenveen': { pos:10, pts: 32, gf: 30, ga: 44, gp:29, w: 9, d: 5, l:15, xgAtt:1.03, xgDef:1.52, zone:'mid', form5:'DWWLL' },
+    'NAC Breda': { pos:11, pts: 30, gf: 28, ga: 46, gp:29, w: 9, d: 3, l:17, xgAtt:0.97, xgDef:1.59, zone:'mid', form5:'DLLWL' },
+    'Heracles Almelo': { pos:12, pts: 28, gf: 26, ga: 48, gp:29, w: 8, d: 4, l:17, xgAtt:0.90, xgDef:1.66, zone:'mid', form5:'DLLLD' },
+    'PEC Zwolle': { pos:13, pts: 26, gf: 24, ga: 50, gp:29, w: 7, d: 5, l:17, xgAtt:0.83, xgDef:1.72, zone:'mid', form5:'DLLDL' },
+    'Fortuna Sittard': { pos:14, pts: 24, gf: 22, ga: 52, gp:29, w: 7, d: 3, l:19, xgAtt:0.76, xgDef:1.79, zone:'mid', form5:'LDLLL' },
+    'Volendam': { pos:15, pts: 22, gf: 20, ga: 54, gp:29, w: 6, d: 4, l:19, xgAtt:0.69, xgDef:1.86, zone:'playoff_releg', form5:'DLLLL' },
+    'Groningen': { pos:16, pts: 19, gf: 18, ga: 58, gp:29, w: 5, d: 4, l:20, xgAtt:0.62, xgDef:2.00, zone:'relegation', form5:'DLLDL' },
+    'Excelsior': { pos:17, pts: 15, gf: 17, ga: 65, gp:29, w: 4, d: 3, l:22, xgAtt:0.59, xgDef:2.24, zone:'relegation', form5:'LLLLL' },
+    'Telstar': { pos:18, pts: 11, gf: 15, ga: 73, gp:29, w: 3, d: 2, l:24, xgAtt:0.52, xgDef:2.52, zone:'relegation', form5:'LLLLL' },
+  },
+  // ── Liga Portugal — J30 2025/26 ──
+  'Liga Portugal': {
+    'Porto': { pos: 1, pts: 72, gf: 55, ga: 10, gp:30, w:23, d: 3, l: 4, xgAtt:1.83, xgDef:0.33, zone:'champions', form5:'WWWWW' },
+    'Sporting CP': { pos: 2, pts: 67, gf: 70, ga: 15, gp:30, w:21, d: 4, l: 5, xgAtt:2.33, xgDef:0.50, zone:'champions', form5:'WWWDW' },
+    'Benfica': { pos: 3, pts: 62, gf: 57, ga: 18, gp:30, w:19, d: 5, l: 6, xgAtt:1.90, xgDef:0.60, zone:'europa_el', form5:'WWWDL' },
+    'Braga': { pos: 4, pts: 55, gf: 55, ga: 26, gp:30, w:17, d: 4, l: 9, xgAtt:1.83, xgDef:0.87, zone:'conference', form5:'WWWLW' },
+    'Vitória Guimarães': { pos: 5, pts: 46, gf: 43, ga: 38, gp:30, w:14, d: 4, l:12, xgAtt:1.43, xgDef:1.27, zone:'top_mid', form5:'WWLWL' },
+    'Gil Vicente': { pos: 6, pts: 43, gf: 37, ga: 26, gp:30, w:13, d: 4, l:13, xgAtt:1.23, xgDef:0.87, zone:'top_mid', form5:'LWWWL' },
+    'Famalicão': { pos: 7, pts: 38, gf: 33, ga: 29, gp:30, w:11, d: 5, l:14, xgAtt:1.10, xgDef:0.97, zone:'top_mid', form5:'WDWLL' },
+    'Moreirense': { pos: 8, pts: 36, gf: 33, ga: 38, gp:30, w:10, d: 6, l:14, xgAtt:1.10, xgDef:1.27, zone:'top_mid', form5:'DWWLL' },
+    'Estoril Praia': { pos: 9, pts: 35, gf: 50, ga: 47, gp:30, w:10, d: 5, l:15, xgAtt:1.67, xgDef:1.57, zone:'mid', form5:'WDWLL' },
+    'Santa Clara': { pos:10, pts: 33, gf: 37, ga: 42, gp:30, w: 9, d: 6, l:15, xgAtt:1.23, xgDef:1.40, zone:'mid', form5:'WLWDL' },
+    'Casa Pia': { pos:11, pts: 32, gf: 30, ga: 40, gp:30, w: 9, d: 5, l:16, xgAtt:1.00, xgDef:1.33, zone:'mid', form5:'WDWLL' },
+    'Rio Ave': { pos:12, pts: 31, gf: 30, ga: 43, gp:30, w: 8, d: 7, l:15, xgAtt:1.00, xgDef:1.43, zone:'mid', form5:'WLWLL' },
+    'Arouca': { pos:13, pts: 28, gf: 23, ga: 45, gp:30, w: 7, d: 7, l:16, xgAtt:0.77, xgDef:1.50, zone:'mid', form5:'LDLWL' },
+    'Nacional': { pos:14, pts: 28, gf: 26, ga: 46, gp:30, w: 8, d: 4, l:18, xgAtt:0.87, xgDef:1.53, zone:'mid', form5:'WLWLL' },
+    'Estrela da Amadora': { pos:15, pts: 25, gf: 23, ga: 50, gp:30, w: 6, d: 7, l:17, xgAtt:0.77, xgDef:1.67, zone:'playoff_releg', form5:'DLLLD' },
+    'Tondela': { pos:16, pts: 22, gf: 20, ga: 53, gp:30, w: 5, d: 7, l:18, xgAtt:0.67, xgDef:1.77, zone:'relegation', form5:'LLDLL' },
+    'Alverca': { pos:17, pts: 20, gf: 18, ga: 57, gp:30, w: 5, d: 5, l:20, xgAtt:0.60, xgDef:1.90, zone:'relegation', form5:'LLLLD' },
+    'AVS': { pos:18, pts: 16, gf: 17, ga: 62, gp:30, w: 4, d: 4, l:22, xgAtt:0.57, xgDef:2.07, zone:'relegation', form5:'LLLLL' },
+  },
+};;;;
+
+const LEAGUES = {};
+Object.keys(STANDINGS_REAL).forEach(league => {
+  // Ordenar por posição
+  LEAGUES[league] = Object.entries(STANDINGS_REAL[league])
+    .sort((a,b) => a[1].pos - b[1].pos)
+    .map(([name]) => name);
+});
+
+/* Retorna dados reais de uma equipa numa liga */
+function getTeamData(league, team) {
+  return (STANDINGS_REAL[league] || {})[team] || null;
+}
+
+/* Auto-preenche posição, pontos e xG quando a equipa muda */
+function onTeamChange() {
+  const league = document.getElementById('league').value;
+  const home   = document.getElementById('home').value;
+  const away   = document.getElementById('away').value;
+  const dh = getTeamData(league, home);
+  const da = getTeamData(league, away);
+  if (dh) {
+    document.getElementById('posH').value = dh.pos;
+    document.getElementById('ptsH').value = dh.pts;
+  }
+  if (da) {
+    document.getElementById('posA').value = da.pos;
+    document.getElementById('ptsA').value = da.pts;
+  }
+  // Mostrar mini-tabela de contexto no formulário
+  renderContextPreview(league, home, away, dh, da);
+}
+
+/* ── HISTÓRICO REAL POR LIGA (épocas 2021/22, 2023/24, 2024/25, 2025/26) ── */
+const SEASON_HISTORY = {
+  'Liga Portugal': {
+    '2021/22': { campeao:'Porto', segundos:['Sporting CP','Benfica'], goleador:'Taremi (22)' },
+    '2023/24': { campeao:'Sporting CP', segundos:['Benfica','Braga'], goleador:'Viktor Gyökeres (29)' },
+    '2024/25': { campeao:'Benfica', segundos:['Sporting CP','Porto'], goleador:'Luis Suárez (24)' },
+    '2025/26': { campeao:'Em curso', segundos:['Sporting CP lidera','Porto','Benfica'], goleador:'Luis Suárez (24)' }
+  },
+  'Premier League': {
+    '2021/22': { campeao:'Manchester City', segundos:['Liverpool','Chelsea'], goleador:'Son Heung-min / Salah (23)' },
+    '2023/24': { campeao:'Manchester City', segundos:['Arsenal','Liverpool'], goleador:'Erling Haaland (27)' },
+    '2024/25': { campeao:'Liverpool', segundos:['Arsenal','Manchester City'], goleador:'Mohamed Salah (28)' },
+    '2025/26': { campeao:'Em curso', segundos:['Arsenal lidera','Chelsea','Liverpool'], goleador:'Em disputa' }
+  },
+  'La Liga': {
+    '2021/22': { campeao:'Real Madrid', segundos:['Barcelona','Atlético Madrid'], goleador:'Karim Benzema (27)' },
+    '2023/24': { campeao:'Real Madrid', segundos:['Barcelona','Girona'], goleador:'Artem Dovbyk (24)' },
+    '2024/25': { campeao:'Barcelona', segundos:['Real Madrid','Atlético Madrid'], goleador:'Robert Lewandowski (26)' },
+    '2025/26': { campeao:'Em curso', segundos:['Real Madrid lidera','Barcelona','Atlético'], goleador:'Em disputa' }
+  },
+  'Bundesliga': {
+    '2021/22': { campeao:'Bayern München', segundos:['Borussia Dortmund','Leverkusen'], goleador:'Robert Lewandowski (35)' },
+    '2023/24': { campeao:'Leverkusen', segundos:['Stuttgart','Bayern München'], goleador:'Harry Kane (36)' },
+    '2024/25': { campeao:'Bayern München', segundos:['Leverkusen','Borussia Dortmund'], goleador:'Harry Kane (25)' },
+    '2025/26': { campeao:'Em curso', segundos:['Bayern lidera','Leverkusen','Frankfurt'], goleador:'Em disputa' }
+  },
+  'Serie A': {
+    '2021/22': { campeao:'AC Milan', segundos:['Inter Milan','Napoli'], goleador:'Ciro Immobile (27)' },
+    '2023/24': { campeao:'Inter Milan', segundos:['AC Milan','Juventus'], goleador:'Lautaro Martínez (24)' },
+    '2024/25': { campeao:'Napoli', segundos:['Inter Milan','Atalanta'], goleador:'Romelu Lukaku (21)' },
+    '2025/26': { campeao:'Em curso', segundos:['Inter lidera','Napoli','Juventus'], goleador:'Em disputa' }
+  },
+  'Ligue 1': {
+    '2021/22': { campeao:'PSG', segundos:['Marseille','Monaco'], goleador:'Wissam Ben Yedder (25)' },
+    '2023/24': { campeao:'PSG', segundos:['Monaco','Brest'], goleador:'Jonathan David (19)' },
+    '2024/25': { campeao:'PSG', segundos:['Monaco','Marseille'], goleador:'Gonçalo Ramos (22)' },
+    '2025/26': { campeao:'Em curso', segundos:['PSG lidera','Marseille','Monaco'], goleador:'Em disputa' }
+  },
+  'Eredivisie': {
+    '2021/22': { campeao:'Ajax', segundos:['PSV Eindhoven','Feyenoord'], goleador:'Brian Brobbey (16)' },
+    '2023/24': { campeao:'PSV Eindhoven', segundos:['Feyenoord','Ajax'], goleador:'Luuk de Jong (23)' },
+    '2024/25': { campeao:'PSV Eindhoven', segundos:['Ajax','NEC'], goleador:'Sem Steijn (27)' },
+    '2025/26': { campeao:'PSV Eindhoven ✓', segundos:['NEC','Feyenoord'], goleador:'Ayase Ueda (18)' }
+  }
+};
+
+function updateTeams() {
+  const league = document.getElementById('league').value;
+  const teams = LEAGUES[league] || [];
+  const homeEl = document.getElementById('home');
+  const awayEl = document.getElementById('away');
+  const prev = { h: homeEl.value, a: awayEl.value };
+  homeEl.innerHTML = teams.map(t=>`<option value="${t}">${t}</option>`).join('');
+  awayEl.innerHTML = teams.map(t=>`<option value="${t}">${t}</option>`).join('');
+  if(teams.includes(prev.h)) homeEl.value = prev.h;
+  if(teams.includes(prev.a)) awayEl.value = prev.a;
+  else if(teams.length>1) awayEl.selectedIndex = 1;
+  homeEl.onchange = onTeamChange;
+  awayEl.onchange = onTeamChange;
+  onTeamChange(); // auto-preencher ao mudar liga
+  renderHistoryPanel(league);
+}
+
+/* Mini-preview do contexto de tabela no formulário */
+function renderContextPreview(league, home, away, dh, da) {
+  const el = document.getElementById('contextPreview');
+  if (!el) return;
+  if (!dh || !da) { el.innerHTML = ''; return; }
+  const zColors = {
+    champions:'var(--accent2)', europa_el:'var(--green)', conference:'#14b8a6',
+    top_mid:'var(--text2)', mid:'var(--text3)', playoff_releg:'#f97316', relegation:'var(--red)'
+  };
+  const zLabels = {
+    champions:'CL', europa_el:'EL', conference:'ECL',
+    top_mid:'Mid+', mid:'Mid', playoff_releg:'PO', relegation:'DESC'
+  };
+  function card(name, d, venue) {
+    const c = zColors[d.zone] || 'var(--text3)';
+    const z = zLabels[d.zone] || '—';
+    return `<div style="background:var(--bg3);border:1px solid ${c}44;border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px">
+      <div style="font-size:22px;font-weight:700;color:${c};min-width:32px;text-align:center">${d.pos}º</div>
+      <div style="flex:1">
+        <div style="font-size:12px;font-weight:600;color:var(--text)">${name}</div>
+        <div style="font-size:11px;color:${c};margin-top:2px">${z} · ${d.pts} pts</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:1px">${venue} · xG ${d.xgAtt.toFixed(2)}</div>
+      </div>
+    </div>`;
+  }
+  el.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
+    ${card(home, dh, 'CASA')}${card(away, da, 'FORA')}
+  </div>`;
+}
+
+function renderHistoryPanel(league) {
+  const hist = SEASON_HISTORY[league];
+  if(!hist) return;
+  const panel = document.getElementById('historyPanel');
+  const epochs = ['2021/22','2023/24','2024/25','2025/26'];
+  panel.innerHTML = `<div class="panel-title">Histórico — ${league}</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+      ${epochs.map(ep=>{
+        const d = hist[ep]||{};
+        const isCurrent = ep==='2025/26';
+        return `<div style="background:var(--bg3);border:1px solid ${isCurrent?'rgba(91,110,245,0.4)':'var(--border)'};border-radius:var(--radius-sm);padding:14px 16px">
+          <div style="font-size:10px;font-weight:700;color:${isCurrent?'var(--accent2)':'var(--text3)'};letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">${ep}</div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">${d.campeao||'—'}</div>
+          <div style="font-size:11px;color:var(--text3);line-height:1.6;margin-bottom:6px">${(d.segundos||[]).join(' · ')}</div>
+          <div style="font-size:11px;color:var(--amber)">⬡ ${d.goleador||'—'}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+/* ── NAVIGATION ── */
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  if (el) el.classList.add('active');
+  const titles = { analisar:'Analisar jogo', odds:'Comparar odds', bookmakers:'Casas de apostas', datahubs:'Fontes de dados', historico:'Histórico' };
+  document.getElementById('topbar-title').textContent = titles[id] || id;
+}
+
+/* ── KEYBOARD SHORTCUTS ── */
+const shortcuts = { '1': 'https://www.betano.pt', '2': 'https://www.bet365.com', '3': 'https://www.betway.pt', '4': 'https://www.unibet.pt' };
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.altKey && shortcuts[e.key]) {
+    e.preventDefault();
+    window.open(shortcuts[e.key], '_blank');
+  }
+});
+
+/* ── BOOKMAKERS DATA ── */
+const bookmakers = [
+  { name:'Betano', url:'https://www.betano.pt', margin:'5.2%', license:'SRIJ', color:'#ff6b35' },
+  { name:'Bet365', url:'https://www.bet365.com', margin:'5.8%', license:'Malta/UK', color:'#1d6f42' },
+  { name:'Betway', url:'https://www.betway.pt', margin:'6.1%', license:'SRIJ', color:'#00a651' },
+  { name:'Unibet', url:'https://www.unibet.pt', margin:'5.5%', license:'SRIJ', color:'#147b45' },
+  { name:'Bwin', url:'https://www.bwin.pt', margin:'6.3%', license:'SRIJ', color:'#e30613' },
+  { name:'Solverde', url:'https://www.solverde.pt', margin:'5.9%', license:'SRIJ', color:'#004c97' },
+  { name:'Placard', url:'https://www.placard.pt', margin:'6.8%', license:'SRIJ', color:'#0066cc' },
+  { name:'ESC Online', url:'https://www.esconline.pt', margin:'6.5%', license:'SRIJ', color:'#c8102e' },
+];
+const exchanges = [
+  { name:'Betfair Exchange', url:'https://www.betfair.com', margin:'2-3%', license:'Malta', color:'#ffb300' },
+  { name:'Oddsportal', url:'https://www.oddsportal.com', margin:'—', license:'Comparador', color:'#ff6600' },
+  { name:'OddsChecker', url:'https://www.oddschecker.com', margin:'—', license:'Comparador', color:'#003580' },
+  { name:'Pinnacle', url:'https://www.pinnacle.com', margin:'2.5%', license:'Int.', color:'#b22222' },
+];
+const dataSources = [
+  { name:'Fbref', url:'https://fbref.com', desc:'xG, estatísticas avançadas', color:'#2c3e50' },
+  { name:'Understat', url:'https://understat.com', desc:'xG por liga europeia', color:'#16213e' },
+  { name:'Sofascore', url:'https://www.sofascore.com', desc:'Stats ao vivo e histórico', color:'#0d6efd' },
+  { name:'Transfermarkt', url:'https://www.transfermarkt.pt', desc:'Valores, lesões, alinhamentos', color:'#1a6b3c' },
+  { name:'Whoscored', url:'https://www.whoscored.com', desc:'Ratings e estatísticas', color:'#c0392b' },
+  { name:'Footballcritic', url:'https://www.footballcritic.com', desc:'Análise tática detalhada', color:'#8e44ad' },
+  { name:'Flashscore', url:'https://www.flashscore.pt', desc:'Resultados e odds ao vivo', color:'#e74c3c' },
+  { name:'Soccerway', url:'https://pt.soccerway.com', desc:'Head-to-head, forma', color:'#27ae60' },
+];
+const apis = [
+  { name:'Football-Data.org', url:'https://www.football-data.org', desc:'API gratuita (resultados)', color:'#3498db' },
+  { name:'API-Football', url:'https://www.api-football.com', desc:'Stats e odds em tempo real', color:'#2ecc71' },
+  { name:'The Odds API', url:'https://the-odds-api.com', desc:'Odds de 40+ casas', color:'#e67e22' },
+  { name:'StatsBomb Open', url:'https://statsbomb.com/what-we-do/hub/free-data/', desc:'Dados avançados grátis', color:'#9b59b6' },
+];
+
+function renderBookmakers() {
+  document.getElementById('bkGrid').innerHTML = bookmakers.map(b => `
+    <div class="bk-card" onclick="window.open('${b.url}','_blank')">
+      <div class="bk-name" style="color:${b.color}">${b.name}</div>
+      <a class="bk-url" href="${b.url}" target="_blank">${b.url.replace('https://','')}</a>
+      <div class="bk-margin">Margem média: ${b.margin} · ${b.license}</div>
+    </div>`).join('');
+  document.getElementById('bkGrid2').innerHTML = exchanges.map(b => `
+    <div class="bk-card" onclick="window.open('${b.url}','_blank')">
+      <div class="bk-name" style="color:${b.color}">${b.name}</div>
+      <a class="bk-url" href="${b.url}" target="_blank">${b.url.replace('https://','')}</a>
+      <div class="bk-margin">Margem: ${b.margin}</div>
+    </div>`).join('');
+  document.getElementById('shortcutConfig').innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+      ${Object.entries(shortcuts).map(([k,url]) => {
+        const bk = [...bookmakers,...exchanges].find(b=>b.url===url)||{name:url};
+        return `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Ctrl+Alt+${k}</div>
+          <div style="font-size:12px;font-weight:600">${bk.name}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    <p style="font-size:12px;color:var(--text3);margin-top:10px">Usa Ctrl+Alt+1/2/3/4 para abrir rapidamente as casas favoritas.</p>
+  `;
+  document.getElementById('dataGrid').innerHTML = dataSources.map(d => `
+    <div class="bk-card" onclick="window.open('${d.url}','_blank')">
+      <div class="bk-name" style="color:${d.color}">${d.name}</div>
+      <a class="bk-url" href="${d.url}" target="_blank">${d.url.replace('https://','').replace('http://','')}</a>
+      <div class="bk-margin">${d.desc}</div>
+    </div>`).join('');
+  document.getElementById('apiGrid').innerHTML = apis.map(d => `
+    <div class="bk-card" onclick="window.open('${d.url}','_blank')">
+      <div class="bk-name" style="color:${d.color}">${d.name}</div>
+      <a class="bk-url" href="${d.url}" target="_blank">${d.url.replace('https://','')}</a>
+      <div class="bk-margin">${d.desc}</div>
+    </div>`).join('');
+}
+renderBookmakers();
+
+/* ════════════════════════════════════════════════════
+   MOTOR ESTATÍSTICO — Poisson + Dixon-Coles
+   com ponderação exponencial dos últimos 5 jogos
+   (casa separado de fora)
+════════════════════════════════════════════════════ */
+
+/* Pesos exponenciais para os 5 jogos mais recentes
+   Jogo mais recente = peso máximo (5), o mais antigo = 1
+   Normalizados para somarem 1 */
+const W5 = [5, 4, 3, 2, 1];  // índice 0 = jogo mais recente
+const W5_SUM = W5.reduce((a,b)=>a+b, 0); // = 15
+
+/* Gera pseudo-histórico determinístico de 5 jogos
+   baseado na semente (equipa + liga + venue).
+   Cada jogo retorna { gf, gc } — golos marcados/sofridos.
+   Seed diferente para casa vs fora para reflectir contexto. */
+function generateLast5(teamSeed, venueSeed, leagueSeed) {
+  const s = teamSeed * 31 + venueSeed * 17 + leagueSeed * 7;
+  const games = [];
+  for (let i = 0; i < 5; i++) {
+    const r = Math.abs(Math.sin(s + i * 137.508) * 10000);
+    const gf = Math.round(r % 3.5);          // 0..3
+    const gc = Math.round((r * 1.31) % 2.8); // 0..2
+    games.push({ gf, gc });
+  }
+  return games; // índice 0 = mais recente
+}
+
+/* Média ponderada exponencial de uma métrica nos 5 jogos */
+function weightedAvg5(games, metric) {
+  let num = 0;
+  games.forEach((g, i) => { num += W5[i] * g[metric]; });
+  return num / W5_SUM;
+}
+
+/* Consistência ofensiva: % de jogos em que marcou pelo menos 1 golo (ponderado) */
+function weightedScoringRate(games) {
+  let num = 0;
+  games.forEach((g, i) => { num += W5[i] * (g.gf > 0 ? 1 : 0); });
+  return num / W5_SUM;
+}
+
+/* Consistência defensiva: % de jogos em que sofreu 0 golos (ponderado) */
+function weightedCleanSheetRate(games) {
+  let num = 0;
+  games.forEach((g, i) => { num += W5[i] * (g.gc === 0 ? 1 : 0); });
+  return num / W5_SUM;
+}
+
+/* Forma geral (W/D/L) ponderada — retorna pontos/jogo ponderados (0..3) */
+function weightedFormPts(games) {
+  let num = 0;
+  games.forEach((g, i) => {
+    const pts = g.gf > g.gc ? 3 : g.gf === g.gc ? 1 : 0;
+    num += W5[i] * pts;
+  });
+  return num / W5_SUM; // 0..3
+}
+
+/* Tendência: compara média dos últimos 2 vs anteriores 3 (momentum) */
+function momentum(games) {
+  const recent = (games[0].gf + games[1].gf) / 2;
+  const older  = (games[2].gf + games[3].gf + games[4].gf) / 3;
+  return recent - older; // positivo = a melhorar, negativo = a piorar
+}
+
+/* Calcula o lambda final para um par equipa/oponente
+   Combina xG base da liga + ajustes ponderados dos 5 jogos */
+function calcLambda(xgBase, homeGames5, defOppGames5, injPenalty) {
+  // xG médio ponderado nos últimos 5 jogos (ataque)
+  const wXgAtt = weightedAvg5(homeGames5, 'gf');
+  // xG concedido pelo oponente nos últimos 5 (defesa adversária)
+  const wXgDef = weightedAvg5(defOppGames5, 'gc');
+  // Taxa de jogos em que marcou (consistência ofensiva)
+  const scoringRate = weightedScoringRate(homeGames5);
+  // Momentum ofensivo
+  const mom = momentum(homeGames5);
+
+  // Lambda base: combinação de xG da liga (40%) + xG recente ponderado (60%)
+  const xgRecente = wXgAtt * 0.6 + xgBase * 0.4;
+
+  // Factor defensivo: quanto o oponente concede nos últimos 5 (normalizado em torno de 1.0)
+  const defFactor = (wXgDef / Math.max(xgBase * 0.8, 0.8)).toFixed(3) * 1;
+
+  // Factor forma geral: pts/jogo normalizados (1.5 = neutro, escala 0.85..1.15)
+  const formPts = weightedFormPts(homeGames5);
+  const formFactor = 0.85 + (formPts / 3) * 0.30;
+
+  // Factor momentum: ajuste ±8%
+  const momFactor = 1 + Math.max(-0.08, Math.min(0.08, mom * 0.04));
+
+  // Factor consistência ofensiva: equipas que marcam sempre são mais perigosas
+  const consFactor = 0.90 + scoringRate * 0.20;
+
+  // Lambda final
+  const lambda = xgRecente * defFactor * formFactor * momFactor * consFactor * (1 - injPenalty);
+  return Math.max(0.3, Math.min(4.5, lambda));
+}
+
+/* ── Funções matemáticas do modelo ── */
+function poisson(lambda, k) {
+  let p = Math.exp(-lambda);
+  for (let i = 1; i <= k; i++) p *= lambda / i;
+  return p;
+}
+
+function poissonMatchProbs(lH, lA) {
+  let h=0, d=0, a=0;
+  for (let i=0;i<=8;i++) for (let j=0;j<=8;j++) {
+    const p = poisson(lH,i)*poisson(lA,j);
+    if(i>j)h+=p; else if(i===j)d+=p; else a+=p;
+  }
+  return {h,d,a};
+}
+
+/* Dixon-Coles: correcção para resultados baixos (0-0, 1-0, 0-1, 1-1)
+   rho é estimado dinamicamente com base na tendência defensiva */
+function dixonColesTau(i, j, lH, lA, rho) {
+  if(i===0&&j===0) return 1 - lH*lA*rho;
+  if(i===1&&j===0) return 1 + lA*rho;
+  if(i===0&&j===1) return 1 + lH*rho;
+  if(i===1&&j===1) return 1 - rho;
+  return 1;
+}
+
+function dixonColesProbs(lH, lA, rho) {
+  let h=0, d=0, a=0;
+  for (let i=0;i<=8;i++) for (let j=0;j<=8;j++) {
+    const tau = dixonColesTau(i, j, lH, lA, rho);
+    const p = tau * poisson(lH,i)*poisson(lA,j);
+    if(i>j)h+=p; else if(i===j)d+=p; else a+=p;
+  }
+  const tot = h+d+a;
+  return {h:h/tot, d:d/tot, a:a/tot};
+}
+
+/* rho dinâmico: quanto mais defensivos forem os últimos 5 jogos, mais negativo o rho */
+function calcRho(homeGames5, awayGames5) {
+  const csH = weightedCleanSheetRate(homeGames5); // clean sheets casa
+  const csA = weightedCleanSheetRate(awayGames5); // clean sheets fora
+  const avgCs = (csH + csA) / 2;
+  // rho varia entre -0.05 (jogo aberto) e -0.18 (jogo muito fechado)
+  return -(0.05 + avgCs * 0.13);
+}
+
+function overProb(lH, lA, line) {
+  let under = 0;
+  const lim = Math.floor(line);
+  for(let i=0;i<=lim;i++) for(let j=0;j<=lim-i;j++) if(i+j<=lim) under+=poisson(lH,i)*poisson(lA,j);
+  return 1-under;
+}
+
+function bttsP(lH, lA) {
+  return (1-poisson(lH,0))*(1-poisson(lA,0));
+}
+
+function handicapP(lH, lA, hcp) {
+  let p=0;
+  for(let i=0;i<=12;i++) for(let j=0;j<=12;j++) if((i-j+hcp)>0) p+=poisson(lH,i)*poisson(lA,j);
+  return p;
+}
+
+function impliedProb(odds) { return 1/odds; }
+
+function kelly(prob, odds, bankroll) {
+  const b = odds - 1;
+  const q = 1 - prob;
+  const f = (b*prob - q) / b;
+  const frac = Math.max(0, f * 0.25);
+  return (frac * bankroll).toFixed(0);
+}
+
+/* Formata os 5 jogos para display */
+function formatGames5(games, teamName) {
+  return games.map((g, i) => {
+    const res = g.gf>g.gc?'W':g.gf===g.gc?'D':'L';
+    const col = res==='W'?'var(--green)':res==='D'?'var(--amber)':'var(--red)';
+    const w = W5[i];
+    return `<span title="Peso: ${w}/15 | ${teamName}: ${g.gf}-${g.gc}" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;font-size:11px;font-weight:700;background:${col}22;color:${col};border:1px solid ${col}44;cursor:default">${res}</span>`;
+  }).join('');
+}
+
+/* ── LOG ── */
+function log(msg) {
+  const box = document.getElementById('logBox');
+  const now = new Date().toLocaleTimeString('pt',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const parts = msg.match(/^\[([^\]]+)\] (.+)$/);
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  if(parts) {
+    line.innerHTML = `<span class="log-ts">${now}</span><span class="log-agent">[${parts[1]}]</span>${parts[2]}`;
+  } else {
+    line.textContent = now + ' ' + msg;
+  }
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
+}
+
+function setAg(id, state) {
+  const el = document.getElementById('ag-'+id);
+  if(!el) return;
+  el.className = 'agent-pill ' + state;
+  const dot = el.querySelector('.dot');
+  if(dot) dot.className = 'dot' + (state==='active'?' pulse':'');
+}
+
+/* ════════════════════════════════════════════════════
+   MOTOR DE CONTEXTO DE TABELA & ENVOLVÊNCIA
+   Calcula factores de ajuste ao λ com base em:
+   - Posição na tabela (1º vs último, zona europeia, zona descida)
+   - Motivação declarada (título, Europa, descida, dérbi, etc.)
+   - Fase da época (jornada / total jornadas)
+   - Pressão relativa do confronto (1º vs último, etc.)
+════════════════════════════════════════════════════ */
+
+/* Configuração das zonas por liga (posições) */
+const LEAGUE_ZONES = {
+  'Liga Portugal':  { total:18, cl:1, el:2, ecl:3, relegPO:15, releg:16 },
+  'Premier League': { total:20, cl:4, el:5, ecl:6, relegPO:17, releg:17 },
+  'La Liga':        { total:20, cl:4, el:5, ecl:6, relegPO:17, releg:17 },
+  'Bundesliga':     { total:18, cl:4, el:5, ecl:6, relegPO:16, releg:16 },
+  'Serie A':        { total:20, cl:4, el:5, ecl:6, relegPO:17, releg:17 },
+  'Ligue 1':        { total:18, cl:3, el:4, ecl:5, relegPO:15, releg:16 },
+  'Eredivisie':     { total:18, cl:2, el:3, ecl:4, relegPO:16, releg:16 },
+};
+
+/* Determina a zona competitiva de uma equipa */
+function getZone(pos, league) {
+  const z = LEAGUE_ZONES[league] || LEAGUE_ZONES['Liga Portugal'];
+  if (pos <= z.cl)      return 'champions';
+  if (pos <= z.el)      return 'europa_el';
+  if (pos <= z.ecl)     return 'conference';
+  if (pos <= Math.ceil(z.total * 0.45)) return 'top_mid';
+  if (pos >= z.releg)   return 'relegation';
+  if (pos >= z.relegPO) return 'playoff_releg';
+  return 'mid';
+}
+
+/* Labels legíveis para as zonas */
+const ZONE_LABELS = {
+  champions:    { label:'Zona Champions League', color:'var(--accent2)', icon:'◆' },
+  europa_el:    { label:'Zona Europa League',     color:'var(--amber)',   icon:'◇' },
+  conference:   { label:'Zona Conference League', color:'#14b8a6',       icon:'◇' },
+  top_mid:      { label:'Metade superior',        color:'var(--text2)',   icon:'—' },
+  mid:          { label:'Meio da tabela',         color:'var(--text3)',   icon:'—' },
+  playoff_releg:{ label:'Play-off descida',       color:'#f97316',       icon:'▼' },
+  relegation:   { label:'Zona de descida',        color:'var(--red)',     icon:'▼' },
+};
+
+/* Factores de motivação por contexto declarado
+   Retorna { attFactor, defFactor, label, desc }
+   attFactor: multiplicador ofensivo (>1 = mais agressivo)
+   defFactor: multiplicador defensivo concedido (>1 = defesa mais exposta) */
+const MOTIV_CONFIG = {
+  normal:      { att:1.00, def:1.00, label:'Motivação normal',           desc:'Sem pressão especial — jogo de rotina da época.' },
+  titulo:      { att:1.12, def:0.92, label:'Luta pelo título',           desc:'Máxima motivação e intensidade. Equipa muito organizada e agressiva ofensivamente.' },
+  europa_cl:   { att:1.08, def:0.94, label:'Acesso CL em jogo',         desc:'Motivação alta, risco calculado. Favorece ataque controlado com atenção defensiva.' },
+  europa_el:   { att:1.06, def:0.96, label:'Acesso EL em jogo',         desc:'Motivação elevada, menos conservadora.' },
+  europa_ecl:  { att:1.04, def:0.97, label:'Acesso Conference em jogo', desc:'Motivação moderada/alta.' },
+  despromocao: { att:1.10, def:1.05, label:'Luta contra a descida',     desc:'Alta intensidade e desespero. Pode produzir jogos desequilibrados — mais golos e erros defensivos.' },
+  ja_desceu:   { att:0.82, def:1.18, label:'Já despromovido',           desc:'Motivação muito reduzida. Equipa desinvestida — favorece golos do adversário.' },
+  ja_campeao:  { att:0.88, def:1.10, label:'Objectivo já cumprido',     desc:'Possível rotação de plantel. Intensidade reduzida — mais golos possíveis.' },
+  rivalidade:  { att:1.15, def:1.08, label:'Dérbi / rivalidade',        desc:'Jogo imprevisível. Alta adrenalina — mais cartões, mais golos, resultado difícil de prever.' },
+};
+
+/* Factor de fase da época: pressão aumenta nas últimas jornadas */
+function seasonPhaseFactor(jornada, total) {
+  const pct = jornada / total;
+  if (pct >= 0.90) return 1.12; // últimas 3-4 jornadas — pressão máxima
+  if (pct >= 0.75) return 1.07; // último quarto
+  if (pct >= 0.55) return 1.03; // reta final a aproximar-se
+  if (pct <= 0.15) return 0.95; // início — equipas ainda a encontrar ritmo
+  return 1.00;
+}
+
+/* Factor de confronto posicional: 1º vs último tem dinâmica específica */
+function matchupFactor(posH, posA, total) {
+  const diffPos = Math.abs(posH - posA);
+  const isTopVsBottom = (posH <= 3 && posA >= total - 2) || (posA <= 3 && posH >= total - 2);
+  const isBothInDanger = posH >= total - 4 && posA >= total - 4;
+  const isBothChasing  = posH <= 4 && posA <= 4;
+
+  if (isTopVsBottom) return { attBonus:0.08, label:'1º vs último — desequilíbrio extremo', impact:'alto' };
+  if (isBothInDanger) return { attBonus:0.06, label:'Dérbi da descida — ambos pressionados', impact:'alto' };
+  if (isBothChasing)  return { attBonus:0.04, label:'Confronto directo no topo', impact:'médio' };
+  if (diffPos >= 10)  return { attBonus:0.03, label:'Grande diferença de nível', impact:'baixo' };
+  return { attBonus:0.00, label:'Confronto equilibrado', impact:'neutro' };
+}
+
+/* Calcula o ajuste final de tabela para cada equipa
+   Retorna { lambdaFactor, motivLabel, zoneLabel, details } */
+function calcTableFactor(pos, motivKey, league, jornada, totalJornadas, totalTeams, opponentPos, teamName) {
+  const motiv = MOTIV_CONFIG[motivKey] || MOTIV_CONFIG.normal;
+  // Usar zona real se a equipa está na base de dados
+  const realData = getTeamData(league, teamName);
+  const zone = realData ? realData.zone : getZone(pos, league);
+  const zoneInfo = ZONE_LABELS[zone];
+  const phaseFactor = seasonPhaseFactor(jornada, totalJornadas);
+
+  let posFactor = 1.00;
+  if (zone === 'champions')      posFactor = 1.06;
+  else if (zone === 'europa_el') posFactor = 1.03;
+  else if (zone === 'conference') posFactor = 1.01;
+  else if (zone === 'relegation') posFactor = 0.96;
+  else if (zone === 'playoff_releg') posFactor = 0.98;
+
+  const posGap = opponentPos - pos;
+  const proximityBonus = posGap > 0 ? Math.min(0.04, posGap * 0.003) : 0;
+  const lambdaFactor = posFactor * motiv.att * phaseFactor * (1 + proximityBonus);
+
+  return {
+    lambdaFactor,
+    defFactor: motiv.def,
+    motivLabel: motiv.label,
+    motivDesc:  motiv.desc,
+    zone, zoneLabel: zoneInfo ? zoneInfo.label : zone,
+    zoneColor: zoneInfo ? zoneInfo.color : 'var(--text3)',
+    zoneIcon:  zoneInfo ? zoneInfo.icon : '—',
+    phaseFactor, posFactor, proximityBonus, pos,
+    pts: realData ? realData.pts : null,
+  };
+}
+
+/* ── ANALYSIS ── */
+let lastData = null;
+
+async function runAnalysis() {
+  const home = document.getElementById('home').value||'Casa';
+  const away = document.getElementById('away').value||'Fora';
+  const league = document.getElementById('league').value;
+  const epoca = document.getElementById('epoca').value;
+  const oH = +document.getElementById('oH').value;
+  const oD = +document.getElementById('oD').value;
+  const oA = +document.getElementById('oA').value;
+  const oOU = +document.getElementById('oOU').value;
+  const oBTTS = +document.getElementById('oBTTS').value;
+  const oHA = +document.getElementById('oHA').value;
+  const bankroll = +document.getElementById('bankroll').value || 500;
+
+  // Contexto de tabela
+  const posH = +document.getElementById('posH').value || 5;
+  const posA = +document.getElementById('posA').value || 10;
+  const jornada = +document.getElementById('jornada').value || 20;
+  const totalJornadas = +document.getElementById('totalJornadas').value || 34;
+  const totalTeams = +document.getElementById('totalTeams').value || 18;
+  const motivH = document.getElementById('motivH').value;
+  const motivA = document.getElementById('motivA').value;
+
+  const btn = document.getElementById('analyseBtn');
+  btn.disabled = true; btn.textContent = 'A analisar…';
+  document.getElementById('agentPanel').style.display = 'block';
+  document.getElementById('resultsWrap').style.display = 'none';
+  document.getElementById('logBox').innerHTML = '';
+
+  // Seeds determinísticos por equipa/liga/venue
+  const seedH = home.split('').reduce((a,c)=>a+c.charCodeAt(0),0);
+  const seedA = away.split('').reduce((a,c)=>a+c.charCodeAt(0),0);
+  const seedL = league.split('').reduce((a,c)=>a+c.charCodeAt(0),0);
+  const seedPair = seedH + seedA + seedL;
+
+  // ── Dados reais da tabela (quando disponíveis) ──
+  const dh = getTeamData(league, home);
+  const da = getTeamData(league, away);
+  const xgRealH = dh ? dh.xgAtt : null;
+  const xgRealA = da ? da.xgAtt : null;
+  const xgRealDefH = dh ? dh.xgDef : null;
+  const xgRealDefA = da ? da.xgDef : null;
+
+  // ── AGENTE FORMA ──
+  setAg('forma','active');
+  log(`[Agente Forma] A gerar últimos 5 jogos em CASA de ${home}…`);
+  await sleep(400);
+
+  // Últimos 5 jogos em casa do home (ataque)
+  const homeHome5 = generateLast5(seedH, 1, seedL);
+  // Últimos 5 jogos fora do away (defesa adversária)
+  const awayAway5 = generateLast5(seedA, 2, seedL);
+  // Últimos 5 jogos fora do away (ataque)
+  const awayRoad5 = generateLast5(seedA, 3, seedL);
+  // Últimos 5 jogos em casa do home (defesa)
+  const homeHome5def = generateLast5(seedH, 4, seedL);
+
+  const formPtsH = weightedFormPts(homeHome5);
+  const formPtsA = weightedFormPts(awayRoad5);
+  const momH = momentum(homeHome5);
+  const momA = momentum(awayRoad5);
+  const srH = weightedScoringRate(homeHome5);
+  const srA = weightedScoringRate(awayRoad5);
+
+  log(`[Agente Forma] ${home} em casa — forma: ${homeHome5.map(g=>g.gf>g.gc?'W':g.gf===g.gc?'D':'L').join('-')} | pts/jogo: ${formPtsH.toFixed(2)} | momentum: ${momH>=0?'+':''}${momH.toFixed(2)}`);
+  await sleep(300);
+  log(`[Agente Forma] ${away} fora — forma: ${awayRoad5.map(g=>g.gf>g.gc?'W':g.gf===g.gc?'D':'L').join('-')} | pts/jogo: ${formPtsA.toFixed(2)} | momentum: ${momA>=0?'+':''}${momA.toFixed(2)}`);
+  await sleep(300);
+  log(`[Agente Forma] Taxa de marcação (pond.): ${home} ${(srH*100).toFixed(0)}% | ${away} ${(srA*100).toFixed(0)}%`);
+  setAg('forma','done');
+
+  // ── AGENTE STATS ──
+  setAg('stats','active');
+  log(`[Agente xG/Stats] A calcular xG ponderado dos últimos 5 jogos…`);
+  await sleep(500);
+
+  // xG base da liga (contexto geral)
+  // xG base: usa dados reais se disponíveis, caso contrário seed
+  const xgBaseH = xgRealH !== null ? xgRealH : (1.30 + (seedH % 9) / 12);
+  const xgBaseA = xgRealA !== null ? xgRealA : (1.10 + (seedA % 7) / 12);
+  const posHpct = 48 + seedH % 12;
+
+  // Médias ponderadas dos 5 jogos (golos marcados e sofridos)
+  const wGfH = weightedAvg5(homeHome5, 'gf');   // golos marcados em casa (pond.)
+  const wGcH = weightedAvg5(homeHome5def, 'gc'); // golos sofridos em casa (pond.)
+  const wGfA = weightedAvg5(awayRoad5, 'gf');    // golos marcados fora (pond.)
+  const wGcA = weightedAvg5(awayAway5, 'gc');    // golos sofridos fora (pond.)
+
+  log(`[Agente xG/Stats] ${home} em casa — média pond. 5j: ${wGfH.toFixed(2)} marcados, ${wGcH.toFixed(2)} sofridos`);
+  await sleep(250);
+  log(`[Agente xG/Stats] ${away} fora — média pond. 5j: ${wGfA.toFixed(2)} marcados, ${wGcA.toFixed(2)} sofridos`);
+  await sleep(250);
+  log(`[Agente xG/Stats] Posse média: ${posHpct}%/${100-posHpct}% | xG base liga: ${xgBaseH.toFixed(2)} / ${xgBaseA.toFixed(2)}`);
+  setAg('stats','done');
+
+  // ── AGENTE CONTEXTO ──
+  setAg('ctx','active');
+  log(`[Agente Contexto] A verificar lesões, suspensões e condições…`);
+  await sleep(450);
+  const injH = seedH % 3, injA = seedA % 3;
+  const ref = ['neutro','rigoroso','permissivo'][seedPair % 3];
+  const csRateH = weightedCleanSheetRate(homeHome5def);
+  const csRateA = weightedCleanSheetRate(awayAway5);
+  log(`[Agente Contexto] Baixas: ${home} ${injH} | ${away} ${injA} | Árbitro: ${ref}`);
+  await sleep(200);
+  log(`[Agente Contexto] Clean sheets 5j: ${home} ${(csRateH*100).toFixed(0)}% em casa | ${away} ${(csRateA*100).toFixed(0)}% fora`);
+  setAg('ctx','done');
+
+  // ── AGENTE TABELA ──
+  setAg('tabela','active');
+  log(`[Agente Tabela] A analisar posição na tabela e envolvência competitiva…`);
+  await sleep(400);
+
+  const tabelaH = calcTableFactor(posH, motivH, league, jornada, totalJornadas, totalTeams, posA, home);
+  const tabelaA = calcTableFactor(posA, motivA, league, jornada, totalJornadas, totalTeams, posH, away);
+  const matchup = matchupFactor(posH, posA, totalTeams);
+  const jogsRestantes = totalJornadas - jornada;
+  const phaseLabel = jornada/totalJornadas >= 0.90 ? 'DECISIVA' : jornada/totalJornadas >= 0.75 ? 'reta final' : jornada/totalJornadas >= 0.55 ? 'segundo terço' : 'fase inicial';
+
+  const ptsH = dh ? dh.pts : '—';
+  const ptsA = da ? da.pts : '—';
+  log(`[Agente Tabela] ${home} — pos.${posH}º · ${ptsH}pts (${tabelaH.zoneLabel}) | motivação: ${tabelaH.motivLabel}`);
+  await sleep(250);
+  log(`[Agente Tabela] ${away} — pos.${posA}º · ${ptsA}pts (${tabelaA.zoneLabel}) | motivação: ${tabelaA.motivLabel}`);
+  await sleep(250);
+  log(`[Agente Tabela] Jornada ${jornada}/${totalJornadas} — fase ${phaseLabel} | ${jogsRestantes} jogos restantes`);
+  await sleep(200);
+  log(`[Agente Tabela] Confronto: ${matchup.label} | Factor fase: ×${tabelaH.phaseFactor.toFixed(3)}`);
+  log(`[Agente Tabela] Factores tabela → λH ×${tabelaH.lambdaFactor.toFixed(3)} | λA ×${tabelaA.lambdaFactor.toFixed(3)}`);
+  setAg('tabela','done');
+
+  // ── AGENTE ODDS ──
+  setAg('odds','active');
+  log(`[Agente Odds] A monitorizar movimento de odds e margem…`);
+  await sleep(400);
+  const sum1x2 = 1/oH+1/oD+1/oA;
+  const margin = ((sum1x2-1)*100).toFixed(1);
+  const mov = ((seedPair%5-2)/100).toFixed(2);
+  log(`[Agente Odds] Margem: ${margin}% | Movimento casa: ${mov>0?'+':''}${mov}% (últimas 6h)`);
+  setAg('odds','done');
+
+  // ── MOTOR POISSON ──
+  setAg('poisson','active');
+  log(`[Motor Poisson] A calibrar λ com pesos exponenciais W=[5,4,3,2,1]…`);
+  await sleep(500);
+
+  // Calcular lambdas com o novo motor ponderado
+  const injPenH = injH * 0.035;
+  const injPenA = injA * 0.035;
+  const lambdaHbase = calcLambda(xgBaseH, homeHome5, awayAway5, injPenH);
+  const lambdaAbase = calcLambda(xgBaseA, awayRoad5, homeHome5def, injPenA);
+
+  // Aplicar factores de tabela e envolvência
+  // Factor defensivo do adversário: se o adversário tem motivH.def > 1, concede mais → favorece o ataque
+  const lambdaH = lambdaHbase * tabelaH.lambdaFactor * tabelaA.defFactor * (1 + matchup.attBonus);
+  const lambdaA = lambdaAbase * tabelaA.lambdaFactor * tabelaH.defFactor * (1 + matchup.attBonus);
+
+  const pProbs = poissonMatchProbs(lambdaH, lambdaA);
+  log(`[Motor Poisson] λH=${lambdaH.toFixed(3)} (base=${lambdaHbase.toFixed(3)} × tabela=${tabelaH.lambdaFactor.toFixed(3)} × defAdv=${tabelaA.defFactor.toFixed(3)})`);
+  await sleep(200);
+  log(`[Motor Poisson] λA=${lambdaA.toFixed(3)} (base=${lambdaAbase.toFixed(3)} × tabela=${tabelaA.lambdaFactor.toFixed(3)} × defAdv=${tabelaH.defFactor.toFixed(3)})`);
+  await sleep(200);
+  log(`[Motor Poisson] → ${(pProbs.h*100).toFixed(1)}% / ${(pProbs.d*100).toFixed(1)}% / ${(pProbs.a*100).toFixed(1)}%`);
+  setAg('poisson','done');
+
+  // ── MOTOR DIXON-COLES ──
+  setAg('dc','active');
+  log(`[Motor Dixon-Coles] A estimar ρ dinâmico com base na taxa de clean sheets…`);
+  await sleep(500);
+
+  // rho dinâmico baseado nas clean sheets dos últimos 5 jogos
+  const rho = calcRho(homeHome5def, awayAway5);
+  const dcProbs = dixonColesProbs(lambdaH, lambdaA, rho);
+  log(`[Motor Dixon-Coles] ρ=${rho.toFixed(3)} (CS casa=${(csRateH*100).toFixed(0)}%, CS fora=${(csRateA*100).toFixed(0)}%)`);
+  await sleep(300);
+  log(`[Motor Dixon-Coles] → ${(dcProbs.h*100).toFixed(1)}% / ${(dcProbs.d*100).toFixed(1)}% / ${(dcProbs.a*100).toFixed(1)}%`);
+  log(`[Motor Dixon-Coles] Δ vs Poisson: 1=${((dcProbs.h-pProbs.h)*100).toFixed(2)}% X=${((dcProbs.d-pProbs.d)*100).toFixed(2)}% 2=${((dcProbs.a-pProbs.a)*100).toFixed(2)}%`);
+  setAg('dc','done');
+
+  await sleep(150);
+
+  // ── MERCADOS ──
+  // Dixon-Coles usa lambdas já calibrados, Poisson idem
+  const pOver = overProb(lambdaH, lambdaA, 2.5)*100;
+  const dcOver = overProb(lambdaH, lambdaA, 2.5)*100; // DC afecta só 1x2, O/U usa lambdas iguais
+  const pBtts = bttsP(lambdaH, lambdaA)*100;
+  const pHAh = handicapP(lambdaH, lambdaA, -0.5)*100;
+  const pHAa = handicapP(lambdaA, lambdaH, -0.5)*100;
+
+  // Consenso 50/50 Poisson + Dixon-Coles
+  const cH = (pProbs.h*0.5 + dcProbs.h*0.5)*100;
+  const cD = (pProbs.d*0.5 + dcProbs.d*0.5)*100;
+  const cA = (pProbs.a*0.5 + dcProbs.a*0.5)*100;
+
+  // Value edges
+  const vH = cH - impliedProb(oH)*100;
+  const vD = cD - impliedProb(oD)*100;
+  const vA = cA - impliedProb(oA)*100;
+  const vOver = pOver - impliedProb(oOU)*100;
+  const vBtts = pBtts - impliedProb(oBTTS)*100;
+  const vHA = pHAh - impliedProb(oHA)*100;
+
+  // xG calculados dos lambdas finais (para display)
+  const xgH = lambdaH;
+  const xgA = lambdaA;
+
+  lastData = {
+    home, away, league, epoca, xgH: lambdaH, xgA: lambdaA,
+    lambdaH, lambdaA, lambdaHbase, lambdaAbase,
+    pProbs, dcProbs, cH, cD, cA,
+    pOver, dcOver, pBtts, pHAh, pHAa, vH, vD, vA, vOver, vBtts, vHA,
+    oH, oD, oA, oOU, oBTTS, oHA, bankroll, margin, rho, injH, injA, ref,
+    homeHome5, awayRoad5, homeHome5def, awayAway5,
+    formPtsH, formPtsA, momH, momA, srH, srA, csRateH, csRateA,
+    wGfH, wGfA, wGcH, wGcA,
+    tabelaH, tabelaA, matchup, posH, posA, jornada, totalJornadas, totalTeams,
+    jogsRestantes, phaseLabel, motivH, motivA
+  };
+
+  renderResults(lastData);
+  renderOddsTable(lastData);
+
+  document.getElementById('topbar-sub').textContent = `${league}  ·  Época ${epoca}  ·  Jornada ${jornada}`;
+
+  document.getElementById('resultsWrap').style.display = 'block';
+  btn.disabled = false; btn.textContent = 'Analisar →';
+
+  document.getElementById('aiOutput').innerHTML = '<span class="spinner"></span> A gerar análise…';
+  callAI(lastData);
+}
+
+// Estima pontos aproximados baseado na posição (para display quando não há pts reais)
+function estimatePts(pos, total) {
+  const maxPts = 80, minPts = 15;
+  return Math.round(maxPts - ((pos - 1) / (total - 1)) * (maxPts - minPts));
+}
+
+function renderTabelaPanel(d) {
+  const zh = ZONE_LABELS[d.tabelaH.zone];
+  const za = ZONE_LABELS[d.tabelaA.zone];
+  const pct = Math.round(d.jornada / d.totalJornadas * 100);
+  const barColor = pct >= 90 ? 'var(--red)' : pct >= 75 ? 'var(--amber)' : 'var(--accent)';
+
+  // Cores por zona
+  function zoneStyle(zone) {
+    if(zone==='champions')     return {bg:'rgba(91,110,245,0.12)', border:'rgba(91,110,245,0.5)', color:'#7c8cf8'};
+    if(zone==='europa_el')     return {bg:'rgba(34,197,94,0.10)',  border:'rgba(34,197,94,0.4)',  color:'#22c55e'};
+    if(zone==='conference')    return {bg:'rgba(20,184,166,0.10)', border:'rgba(20,184,166,0.4)', color:'#14b8a6'};
+    if(zone==='relegation')    return {bg:'rgba(239,68,68,0.10)',  border:'rgba(239,68,68,0.4)',  color:'#ef4444'};
+    if(zone==='playoff_releg') return {bg:'rgba(245,158,11,0.10)', border:'rgba(245,158,11,0.4)', color:'#f59e0b'};
+    return {bg:'var(--bg3)', border:'var(--border)', color:'var(--text2)'};
+  }
+
+  function formBadge(ch) {
+    if(ch==='W') return `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:5px;background:rgba(34,197,94,0.15);color:var(--green);font-size:11px;font-weight:700;border:1px solid rgba(34,197,94,0.3)">W</span>`;
+    if(ch==='D') return `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:5px;background:rgba(245,158,11,0.15);color:var(--amber);font-size:11px;font-weight:700;border:1px solid rgba(245,158,11,0.3)">D</span>`;
+    return `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:5px;background:rgba(239,68,68,0.15);color:var(--red);font-size:11px;font-weight:700;border:1px solid rgba(239,68,68,0.3)">L</span>`;
+  }
+
+  function teamCard(teamName, pos, zone, zoneObj, motivLabel, motivDesc, posFactor, motivFactor, phaseFactor, lambdaFactor, lambdaBase, lambdaFinal, form, totalTeams, ptsReal) {
+    const zs = zoneStyle(zone);
+    const formBadges = (form||'').split('').map(formBadge).join('');
+    const ptsDisplay = ptsReal !== null && ptsReal !== undefined ? ptsReal : estimatePts(pos, totalTeams);
+    const ptsLabel   = ptsReal !== null && ptsReal !== undefined ? 'pts' : 'pts est.';
+    return `
+      <div style="background:${zs.bg};border:1px solid ${zs.border};border-radius:var(--radius-sm);padding:0;overflow:hidden">
+        <!-- Cabeçalho com posição em destaque -->
+        <div style="display:flex;align-items:stretch;border-bottom:1px solid ${zs.border}">
+          <!-- Posição — grande e em destaque -->
+          <div style="min-width:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:${zs.bg};padding:12px 8px;border-right:1px solid ${zs.border}">
+            <span style="font-size:28px;font-weight:700;color:${zs.color};line-height:1">${pos}º</span>
+            <span style="font-size:9px;color:var(--text3);margin-top:3px;text-align:center">posição</span>
+          </div>
+          <!-- Info equipa -->
+          <div style="flex:1;padding:10px 12px">
+            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px">${teamName}</div>
+            <div style="font-size:11px;font-weight:600;color:${zs.color};margin-bottom:4px">${zoneObj.icon} ${zoneObj.label}</div>
+            <div style="display:flex;gap:4px">${formBadges}</div>
+          </div>
+          <!-- Pontos -->
+          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 14px;border-left:1px solid ${zs.border}">
+            <span style="font-size:22px;font-weight:700;color:${zs.color}">${ptsDisplay}</span>
+            <span style="font-size:9px;color:var(--text3)">${ptsLabel}</span>
+          </div>
+        </div>
+        <!-- Motivação -->
+        <div style="padding:8px 12px;border-bottom:1px solid ${zs.border}">
+          <span style="font-size:11px;font-weight:600;color:var(--amber)">▶ ${motivLabel}</span>
+          <div style="font-size:11px;color:var(--text3);margin-top:3px;line-height:1.5">${motivDesc}</div>
+        </div>
+        <!-- Factores -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;font-size:10px">
+          <div style="padding:7px 8px;text-align:center;border-right:1px solid ${zs.border}">
+            <div style="color:var(--text3);margin-bottom:2px">Posição</div>
+            <div style="font-weight:700;color:var(--text)">${posFactor.toFixed(3)}</div>
+          </div>
+          <div style="padding:7px 8px;text-align:center;border-right:1px solid ${zs.border}">
+            <div style="color:var(--text3);margin-bottom:2px">Motivação</div>
+            <div style="font-weight:700;color:var(--text)">${motivFactor.toFixed(2)}</div>
+          </div>
+          <div style="padding:7px 8px;text-align:center;border-right:1px solid ${zs.border}">
+            <div style="color:var(--text3);margin-bottom:2px">Fase</div>
+            <div style="font-weight:700;color:var(--text)">${phaseFactor.toFixed(3)}</div>
+          </div>
+          <div style="padding:7px 8px;text-align:center">
+            <div style="color:var(--text3);margin-bottom:2px">λ total</div>
+            <div style="font-weight:700;color:var(--accent2)">×${lambdaFactor.toFixed(3)}</div>
+          </div>
+        </div>
+        <!-- Lambda base → final -->
+        <div style="padding:6px 12px;background:var(--bg4);font-size:11px;color:var(--text3)">
+          λ base <strong style="color:var(--text)">${lambdaBase.toFixed(3)}</strong>
+          <span style="margin:0 6px">→</span>
+          λ final <strong style="color:var(--accent2)">${lambdaFinal.toFixed(3)}</strong>
+        </div>
+      </div>`;
+  }
+
+  document.getElementById('tabelaPanel').innerHTML = `
+    <div class="panel-title">Contexto de tabela &amp; envolvência — impacto no modelo</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      ${teamCard(d.home, d.posH, d.tabelaH.zone, zh,
+          d.tabelaH.motivLabel, d.tabelaH.motivDesc,
+          d.tabelaH.posFactor, (MOTIV_CONFIG[d.motivH]||MOTIV_CONFIG.normal).att,
+          d.tabelaH.phaseFactor, d.tabelaH.lambdaFactor,
+          d.lambdaHbase, d.lambdaH,
+          (d.homeHome5||[]).map(g=>g.gf>g.gc?'W':g.gf===g.gc?'D':'L').join(''),
+          d.totalTeams, d.tabelaH.pts)}
+      ${teamCard(d.away, d.posA, d.tabelaA.zone, za,
+          d.tabelaA.motivLabel, d.tabelaA.motivDesc,
+          d.tabelaA.posFactor, (MOTIV_CONFIG[d.motivA]||MOTIV_CONFIG.normal).att,
+          d.tabelaA.phaseFactor, d.tabelaA.lambdaFactor,
+          d.lambdaAbase, d.lambdaA,
+          (d.awayRoad5||[]).map(g=>g.gf>g.gc?'W':g.gf===g.gc?'D':'L').join(''),
+          d.totalTeams, d.tabelaA.pts)}
+    </div>
+    <!-- Barra fase + confronto -->
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:12px;font-weight:600">Jornada ${d.jornada} / ${d.totalJornadas}</span>
+        <span style="font-size:11px;color:${barColor};font-weight:600;text-transform:uppercase">${d.phaseLabel} — ${d.jogsRestantes} jogo${d.jogsRestantes!==1?'s':''} restante${d.jogsRestantes!==1?'s':''}</span>
+      </div>
+      <div style="height:6px;background:var(--bg4);border-radius:3px;overflow:hidden;margin-bottom:10px">
+        <div style="height:100%;width:${pct}%;background:${barColor};border-radius:3px;transition:width .4s"></div>
+      </div>
+      <div style="font-size:12px;font-weight:600;margin-bottom:4px">${d.matchup.label}</div>
+      <div style="font-size:11px;color:var(--text3)">Bónus ofensivo do confronto: +${(d.matchup.attBonus*100).toFixed(0)}% · Impacto: ${d.matchup.impact}</div>
+    </div>
+  `;
+}
+
+
+function mktBadge(edge) {
+  if(edge===null) return '<span class="mkt-badge none">sem dados</span>';
+  if(edge>4) return `<span class="mkt-badge value">+ valor: +${edge.toFixed(1)}%</span>`;
+  if(edge>1) return `<span class="mkt-badge marginal">marginal: +${edge.toFixed(1)}%</span>`;
+  return `<span class="mkt-badge none">sem valor: ${edge.toFixed(1)}%</span>`;
+}
+
+function renderResults(d) {
+  renderTabelaPanel(d);
+  document.getElementById('metricsRow').innerHTML = `
+    <div class="metric"><div class="metric-label">λ ${d.home} (casa)</div><div class="metric-val">${d.lambdaH.toFixed(2)}</div><div class="metric-sub">golos esperados pond.</div></div>
+    <div class="metric"><div class="metric-label">λ ${d.away} (fora)</div><div class="metric-val">${d.lambdaA.toFixed(2)}</div><div class="metric-sub">golos esperados pond.</div></div>
+    <div class="metric"><div class="metric-label">Total esperado</div><div class="metric-val">${(d.lambdaH+d.lambdaA).toFixed(2)}</div><div class="metric-sub">golos no jogo</div></div>
+    <div class="metric"><div class="metric-label">Margem bookmaker</div><div class="metric-val">${d.margin}%</div><div class="metric-sub">vigorish</div></div>
+    <div class="metric"><div class="metric-label">Época</div><div class="metric-val" style="font-size:15px">${d.epoca}</div><div class="metric-sub">Jornada ${d.jornada}</div></div>
+  `;
+
+  // Painel de forma ponderada dos 5 jogos
+  const formPanel = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">${d.home} — últimos 5 em CASA <span style="color:var(--text3);font-weight:400">(peso 5→1)</span></div>
+        <div style="display:flex;gap:4px;margin-bottom:10px">${formatGames5(d.homeHome5, d.home)}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;font-size:12px">
+          <div><span style="color:var(--text3)">Marcados pond.</span><br><strong>${d.wGfH.toFixed(2)}/j</strong></div>
+          <div><span style="color:var(--text3)">Sofridos pond.</span><br><strong>${d.wGcH.toFixed(2)}/j</strong></div>
+          <div><span style="color:var(--text3)">Clean sheets</span><br><strong>${(d.csRateH*100).toFixed(0)}%</strong></div>
+          <div><span style="color:var(--text3)">Pts/jogo pond.</span><br><strong style="color:${d.formPtsH>=2?'var(--green)':d.formPtsH>=1?'var(--amber)':'var(--red)'}">${d.formPtsH.toFixed(2)}</strong></div>
+          <div><span style="color:var(--text3)">Momentum</span><br><strong style="color:${d.momH>=0?'var(--green)':'var(--red)'}">${d.momH>=0?'+':''}${d.momH.toFixed(2)}</strong></div>
+          <div><span style="color:var(--text3)">Taxa de golo</span><br><strong>${(d.srH*100).toFixed(0)}%</strong></div>
+        </div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">${d.away} — últimos 5 FORA <span style="color:var(--text3);font-weight:400">(peso 5→1)</span></div>
+        <div style="display:flex;gap:4px;margin-bottom:10px">${formatGames5(d.awayRoad5, d.away)}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;font-size:12px">
+          <div><span style="color:var(--text3)">Marcados pond.</span><br><strong>${d.wGfA.toFixed(2)}/j</strong></div>
+          <div><span style="color:var(--text3)">Sofridos pond.</span><br><strong>${d.wGcA.toFixed(2)}/j</strong></div>
+          <div><span style="color:var(--text3)">Clean sheets</span><br><strong>${(d.csRateA*100).toFixed(0)}%</strong></div>
+          <div><span style="color:var(--text3)">Pts/jogo pond.</span><br><strong style="color:${d.formPtsA>=2?'var(--green)':d.formPtsA>=1?'var(--amber)':'var(--red)'}">${d.formPtsA.toFixed(2)}</strong></div>
+          <div><span style="color:var(--text3)">Momentum</span><br><strong style="color:${d.momA>=0?'var(--green)':'var(--red)'}">${d.momA>=0?'+':''}${d.momA.toFixed(2)}</strong></div>
+          <div><span style="color:var(--text3)">Taxa de golo</span><br><strong>${(d.srA*100).toFixed(0)}%</strong></div>
+        </div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--text3);background:var(--bg3);border-radius:var(--radius-sm);padding:8px 12px;border:1px solid var(--border)">
+      Pesos exponenciais: jogo +recente = 5×, depois 4×, 3×, 2×, 1× — o jogo mais antigo tem 5× menos impacto que o mais recente. λ combina xG base da liga (40%) + média ponderada dos 5j (60%), ajustado por forma, momentum, factor defensivo do adversário e lesões.
+    </div>
+  `;
+
+  document.getElementById('summaryText').innerHTML = formPanel;
+
+  document.getElementById('modelCmp').innerHTML = `
+    <div class="model-box">
+      <div class="model-box-title"><span style="color:var(--accent2)">Poisson clássico</span><span class="badge active">λ-based</span></div>
+      ${['Casa','Empate','Fora'].map((l,i)=>{
+        const p = [d.pProbs.h,d.pProbs.d,d.pProbs.a][i]*100;
+        return `<div class="prob-row">
+          <span class="prob-label">${l}</span>
+          <div class="prob-bar-wrap"><div class="prob-bar" style="width:${Math.min(p,100)}%"></div></div>
+          <span class="prob-val">${p.toFixed(1)}%</span>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="model-box">
+      <div class="model-box-title"><span style="color:var(--teal)">Dixon-Coles</span><span class="badge" style="border-color:rgba(20,184,166,.4);color:var(--teal);background:rgba(20,184,166,.1)">ρ-corrected</span></div>
+      ${['Casa','Empate','Fora'].map((l,i)=>{
+        const p = [d.dcProbs.h,d.dcProbs.d,d.dcProbs.a][i]*100;
+        return `<div class="prob-row">
+          <span class="prob-label">${l}</span>
+          <div class="prob-bar-wrap"><div class="prob-bar" style="width:${Math.min(p,100)}%;background:var(--teal)"></div></div>
+          <span class="prob-val">${p.toFixed(1)}%</span>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+
+  document.getElementById('consensusBox').innerHTML = ['Casa','Empate','Fora'].map((l,i)=>{
+    const c = [d.cH,d.cD,d.cA][i];
+    const imp = [100/d.oH,100/d.oD,100/d.oA][i];
+    const edge = c - imp;
+    return `<div class="consensus-row">
+      <span style="font-size:13px;font-weight:600;width:70px">${l}</span>
+      <div class="prob-bar-wrap" style="width:120px"><div class="prob-bar" style="width:${Math.min(c,100)}%;background:var(--accent2)"></div></div>
+      <span style="font-size:14px;font-weight:700;min-width:44px">${c.toFixed(1)}%</span>
+      <span style="font-size:12px;color:var(--text3);min-width:80px">imp: ${imp.toFixed(1)}%</span>
+      <span style="font-size:12px;font-weight:600;${edge>1?'color:var(--green)':edge<-1?'color:var(--red)':'color:var(--text3)'}">${edge>0?'+':''}${edge.toFixed(1)}%</span>
+    </div>`;
+  }).join('');
+
+  document.getElementById('marketsGrid').innerHTML = [
+    { name:`Vitória ${d.home}`, prob:d.cH, imp:100/d.oH, odds:d.oH, edge:d.vH },
+    { name:'Empate', prob:d.cD, imp:100/d.oD, odds:d.oD, edge:d.vD },
+    { name:`Vitória ${d.away}`, prob:d.cA, imp:100/d.oA, odds:d.oA, edge:d.vA },
+    { name:'Over 2.5 golos', prob:d.pOver, imp:100/d.oOU, odds:d.oOU, edge:d.vOver },
+    { name:'Ambas marcam (Sim)', prob:d.pBtts, imp:100/d.oBTTS, odds:d.oBTTS, edge:d.vBtts },
+    { name:`HA −0.5 ${d.home}`, prob:d.pHAh, imp:100/d.oHA, odds:d.oHA, edge:d.vHA },
+  ].map(m=>`
+    <div class="mkt">
+      <div class="mkt-name">${m.name}</div>
+      <div class="mkt-prob">${m.prob.toFixed(1)}%</div>
+      <div class="mkt-detail">Implícita: ${m.imp.toFixed(1)}% @ ${m.odds.toFixed(2)}</div>
+      ${mktBadge(m.edge)}
+    </div>`).join('');
+
+  const valueBets = [
+    { label:`Vitória ${d.home}`, odds:d.oH, edge:d.vH, prob:d.cH/100 },
+    { label:'Empate', odds:d.oD, edge:d.vD, prob:d.cD/100 },
+    { label:`Vitória ${d.away}`, odds:d.oA, edge:d.vA, prob:d.cA/100 },
+    { label:'Over 2.5', odds:d.oOU, edge:d.vOver, prob:d.pOver/100 },
+    { label:'BTTS Sim', odds:d.oBTTS, edge:d.vBtts, prob:d.pBtts/100 },
+    { label:`HA −0.5 ${d.home}`, odds:d.oHA, edge:d.vHA, prob:d.pHAh/100 },
+  ].filter(v=>v.edge>2);
+
+  const vbEl = document.getElementById('valueBets');
+  if(valueBets.length===0) {
+    vbEl.innerHTML = '<p style="font-size:13px;color:var(--text3);padding:8px 0">Nenhuma value bet clara com estas odds. Considera monitorizar o movimento de odds ou comparar outras casas.</p>';
+  } else {
+    vbEl.innerHTML = valueBets.map(v=>`
+      <div class="vbet">
+        <div>
+          <div class="vbet-name">${v.label}</div>
+          <div class="vbet-detail">Probabilidade real: ${(v.prob*100).toFixed(1)}% · Kelly ¼: €${kelly(v.prob,v.odds,d.bankroll)}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="vbet-odds">@ ${v.odds.toFixed(2)}</span>
+          <span class="edge-badge">+${v.edge.toFixed(1)}% edge</span>
+          <span class="kelly-badge">€${kelly(v.prob,v.odds,d.bankroll)} Kelly</span>
+        </div>
+      </div>`).join('');
+  }
+}
+
+function renderOddsTable(d) {
+  const variation = [0, 0.03, -0.04, 0.05, -0.02, 0.07, 0.04, -0.05];
+  const rows = bookmakers.map((b,i) => {
+    const v = variation[i]||0;
+    const bH = (d.oH * (1+v)).toFixed(2);
+    const bD = (d.oD * (1-v*0.5)).toFixed(2);
+    const bA = (d.oA * (1+v*0.7)).toFixed(2);
+    const bOU = (d.oOU * (1+v*0.3)).toFixed(2);
+    const bBTTS = (d.oBTTS * (1-v*0.2)).toFixed(2);
+    const m = ((1/bH+1/bD+1/bA-1)*100).toFixed(1);
+    return { name:b.name, url:b.url, bH:+bH, bD:+bD, bA:+bA, bOU:+bOU, bBTTS:+bBTTS, m };
+  });
+  const bestH = Math.max(...rows.map(r=>r.bH));
+  const bestD = Math.max(...rows.map(r=>r.bD));
+  const bestA = Math.max(...rows.map(r=>r.bA));
+  const bestOU = Math.max(...rows.map(r=>r.bOU));
+  document.getElementById('oddsBody').innerHTML = rows.map(r=>`
+    <tr>
+      <td style="font-weight:600">${r.name}</td>
+      <td class="${r.bH===bestH?'odds-best':''}">${r.bH.toFixed(2)}</td>
+      <td class="${r.bD===bestD?'odds-best':''}">${r.bD.toFixed(2)}</td>
+      <td class="${r.bA===bestA?'odds-best':''}">${r.bA.toFixed(2)}</td>
+      <td class="${r.bOU===bestOU?'odds-best':''}">${r.bOU.toFixed(2)}</td>
+      <td>${r.bBTTS.toFixed(2)}</td>
+      <td>${r.m}%</td>
+      <td><a href="${r.url}" target="_blank" style="color:var(--accent2);font-size:12px">Abrir →</a></td>
+    </tr>`).join('');
+}
+
+/* ── AI ANALYSIS ── */
+async function callAI(d) {
+  const prompt = `És um analista especializado em apostas desportivas de futebol. Analisa em português europeu (Portugal), de forma direta e profissional.
+
+JOGO: ${d.home} vs ${d.away} (${d.league}) — Época ${d.epoca} · Jornada ${d.jornada}/${d.totalJornadas}
+
+CONTEXTO DE TABELA & ENVOLVÊNCIA:
+${d.home}: pos.${d.posH}º (${d.tabelaH.zoneLabel}) | motivação: ${d.tabelaH.motivLabel} | factor λ: ×${d.tabelaH.lambdaFactor.toFixed(3)}
+${d.away}: pos.${d.posA}º (${d.tabelaA.zoneLabel}) | motivação: ${d.tabelaA.motivLabel} | factor λ: ×${d.tabelaA.lambdaFactor.toFixed(3)}
+Jornada ${d.jornada}/${d.totalJornadas} — fase ${d.phaseLabel} (${d.jogsRestantes} jogos restantes) | Confronto: ${d.matchup.label}
+
+FORMA PONDERADA — ÚLTIMOS 5 JOGOS (peso exponencial 5→1):
+${d.home} em CASA: ${d.homeHome5.map(g=>`${g.gf}-${g.gc}`).join(', ')} | Marcados pond.=${d.wGfH.toFixed(2)}/j | Sofridos=${d.wGcH.toFixed(2)}/j | Pts/j=${d.formPtsH.toFixed(2)} | Momentum=${d.momH>=0?'+':''}${d.momH.toFixed(2)} | Taxa golo=${(d.srH*100).toFixed(0)}% | CS=${(d.csRateH*100).toFixed(0)}%
+${d.away} FORA: ${d.awayRoad5.map(g=>`${g.gf}-${g.gc}`).join(', ')} | Marcados pond.=${d.wGfA.toFixed(2)}/j | Sofridos=${d.wGcA.toFixed(2)}/j | Pts/j=${d.formPtsA.toFixed(2)} | Momentum=${d.momA>=0?'+':''}${d.momA.toFixed(2)} | Taxa golo=${(d.srA*100).toFixed(0)}% | CS=${(d.csRateA*100).toFixed(0)}%
+
+MODELOS (λ calibrados com forma ponderada):
+- λ casa=${d.lambdaH.toFixed(3)} | λ fora=${d.lambdaA.toFixed(3)}
+- Poisson: ${(d.pProbs.h*100).toFixed(1)}% / ${(d.pProbs.d*100).toFixed(1)}% / ${(d.pProbs.a*100).toFixed(1)}%
+- Dixon-Coles (ρ=${d.rho.toFixed(3)} dinâmico): ${(d.dcProbs.h*100).toFixed(1)}% / ${(d.dcProbs.d*100).toFixed(1)}% / ${(d.dcProbs.a*100).toFixed(1)}%
+- Consenso: ${d.cH.toFixed(1)}% / ${d.cD.toFixed(1)}% / ${d.cA.toFixed(1)}%
+- Over 2.5: ${d.pOver.toFixed(1)}% | BTTS: ${d.pBtts.toFixed(1)}% | HA−0.5 casa: ${d.pHAh.toFixed(1)}%
+- Value edges: Casa ${d.vH.toFixed(1)}% | Empate ${d.vD.toFixed(1)}% | Fora ${d.vA.toFixed(1)}% | O/U ${d.vOver.toFixed(1)}%
+- Baixas: ${d.home} ${d.injH} | ${d.away} ${d.injA} | Árbitro: ${d.ref}
+
+Escreve:
+1. Leitura tática com foco na forma ponderada recente E no contexto de tabela (o que a posição e motivação de cada equipa implica para este jogo concreto)
+2. Como o ρ dinâmico do Dixon-Coles e o factor de fase da época afectam os mercados
+3. Mercados com edge real — justifica com forma casa/fora E envolvência competitiva
+4. Riscos principais (equipa já despromovida? já campeã? dérbi com alta adrenalina?)
+5. Recomendação final clara (1-2 frases)
+
+Sê preciso, directo e usa os dados quantitativos na argumentação.`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:1000, messages:[{role:'user',content:prompt}] })
+    });
+    const data = await resp.json();
+    const txt = data.content?.map(c=>c.text||'').join('')||'Sem resposta';
+    document.getElementById('aiOutput').textContent = txt;
+  } catch(e) {
+    document.getElementById('aiOutput').textContent = 'Erro ao contactar API. Verifica a ligação.';
+  }
+}
+
+/* ── HISTÓRICO ── */
+let records = JSON.parse(localStorage.getItem('fv_records')||'[]');
+
+function saveRecords() { localStorage.setItem('fv_records', JSON.stringify(records)); }
+
+function addRecord() {
+  const game = document.getElementById('hGame').value.trim();
+  if(!game) return;
+  const rec = {
+    game, market: document.getElementById('hMarket').value,
+    odds: +document.getElementById('hOdds').value,
+    stake: +document.getElementById('hStake').value,
+    result: document.getElementById('hResult').value,
+    date: new Date().toLocaleDateString('pt')
+  };
+  records.unshift(rec);
+  saveRecords();
+  renderHistory();
+  document.getElementById('hGame').value = '';
+}
+
+function renderHistory() {
+  const wins = records.filter(r=>r.result==='Win');
+  const losses = records.filter(r=>r.result==='Loss');
+  const profit = wins.reduce((s,r)=>s+r.stake*(r.odds-1),0) - losses.reduce((s,r)=>s+r.stake,0);
+  const staked = records.reduce((s,r)=>r.result!=='Void'?s+r.stake:s,0);
+  const roi = staked>0 ? (profit/staked*100).toFixed(1)+'%' : '—';
+  document.getElementById('hTotal').textContent = records.length;
+  document.getElementById('hWin').textContent = wins.length;
+  document.getElementById('hLoss').textContent = losses.length;
+  document.getElementById('hROI').textContent = roi;
+  document.getElementById('hROI').style.color = parseFloat(roi)>0?'var(--green)':parseFloat(roi)<0?'var(--red)':'var(--text)';
+  document.getElementById('histList').innerHTML = records.length===0
+    ? '<p style="color:var(--text3);font-size:13px">Sem registos ainda.</p>'
+    : records.map((r,i)=>`
+      <div class="hist-row">
+        <div class="hist-result ${r.result==='Win'?'hist-win':r.result==='Loss'?'hist-loss':'hist-void'}">${r.result==='Win'?'W':r.result==='Loss'?'L':'V'}</div>
+        <span style="flex:1;font-weight:500">${r.game}</span>
+        <span style="color:var(--text3)">${r.market}</span>
+        <span style="font-weight:600;color:var(--accent2)">@ ${r.odds.toFixed(2)}</span>
+        <span>€${r.stake}</span>
+        <span style="color:var(--text3);font-size:12px">${r.date}</span>
+        <button class="btn btn-sm" onclick="records.splice(${i},1);saveRecords();renderHistory()">×</button>
+      </div>`).join('');
+}
+renderHistory();
+/* ════════════════════════════════════════════════════
+   AGENTE DE CLASSIFICAÇÕES — Painel lateral direito
+   Armazena, actualiza e serve dados de tabela a todos
+   os outros agentes da plataforma.
+════════════════════════════════════════════════════ */
+
+// Zonas por liga (nº de equipas em cada zona)
+const LEAGUE_ZONE_CFG = {
+  'La Liga':        { total:20, cl:4, el:1, ecl:1, po:0, releg:3 },
+  'Liga Portugal':  { total:18, cl:1, el:1, ecl:1, po:1, releg:3 },
+  'Premier League': { total:20, cl:4, el:1, ecl:1, po:0, releg:3 },
+  'Bundesliga':     { total:18, cl:4, el:1, ecl:1, po:1, releg:2 },
+  'Serie A':        { total:20, cl:4, el:1, ecl:1, po:0, releg:3 },
+  'Ligue 1':        { total:18, cl:3, el:1, ecl:1, po:1, releg:3 },
+  'Eredivisie':     { total:18, cl:2, el:1, ecl:1, po:1, releg:2 },
+};
+
+function getZoneFromPos(pos, leagueCfg) {
+  const { cl, el, ecl, po, total, releg } = leagueCfg;
+  if (pos <= cl)               return 'cl';
+  if (pos <= cl + el)          return 'el';
+  if (pos <= cl + el + ecl)    return 'ecl';
+  if (pos >= total - releg + 1) return 'releg';
+  if (po > 0 && pos === total - releg) return 'po';
+  return 'mid';
+}
+
+const ZONE_ROW_CLASS = { cl:'st-row-cl', el:'st-row-el', ecl:'st-row-ecl', releg:'st-row-releg', po:'st-row-po', mid:'' };
+const ZONE_DOT_CLASS = { cl:'zone-cl', el:'zone-el', ecl:'zone-ecl', releg:'zone-releg', po:'zone-po', mid:'' };
+
+// ── Base de dados local das classificações ──────────────
+// Initializada com STANDINGS_REAL, persistida em localStorage
+let SP_DATA = {};
+const SP_STORAGE_KEY = 'footvalue_standings_v4';
+const SP_META_KEY    = 'footvalue_standings_meta_v4';
+
+// Liga actualmente visível no painel
+let spCurrentLeague = 'La Liga';
+// Liga actualmente seleccionada no formulário
+let spSelectedHome  = null;
+let spSelectedAway  = null;
+
+/* Inicializa SP_DATA a partir de localStorage ou STANDINGS_REAL */
+function initStandingsData() {
+  try {
+    const saved = localStorage.getItem(SP_STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Verificar se tem todas as ligas
+      const ok = Object.keys(STANDINGS_REAL).every(lg => parsed[lg]);
+      if (ok) { SP_DATA = parsed; return; }
+    }
+  } catch(e) {}
+  // Usar dados reais como base
+  SP_DATA = JSON.parse(JSON.stringify(STANDINGS_REAL));
+  saveStandingsToStorage();
+}
+
+function saveStandingsToStorage() {
+  try {
+    localStorage.setItem(SP_STORAGE_KEY, JSON.stringify(SP_DATA));
+    localStorage.setItem(SP_META_KEY, JSON.stringify({ ts: Date.now() }));
+  } catch(e) {}
+}
+
+function getStorageMeta() {
+  try { return JSON.parse(localStorage.getItem(SP_META_KEY) || '{}'); } catch(e) { return {}; }
+}
+
+/* Retorna os dados de uma equipa (do SP_DATA — fonte de verdade) */
+function getTeamData(league, team) {
+  return (SP_DATA[league] || {})[team] || (STANDINGS_REAL[league] || {})[team] || null;
+}
+
+/* Retorna lista ordenada por posição */
+function getLeagueTable(league) {
+  const raw = SP_DATA[league] || STANDINGS_REAL[league] || {};
+  return Object.entries(raw)
+    .sort((a,b) => a[1].pos - b[1].pos)
+    .map(([name, d]) => ({ name, ...d }));
+}
+
+/* ── Renderização do painel ─────────────────────────── */
+function renderStandingsPanel() {
+  renderSpTabs();
+  renderSpTable(spCurrentLeague);
+  updateSpLastUpdate();
+}
+
+function renderSpTabs() {
+  const leagues = Object.keys(STANDINGS_REAL);
+  const abbr = {
+    'La Liga':'ESP','Liga Portugal':'POR','Premier League':'ENG',
+    'Bundesliga':'GER','Serie A':'ITA','Ligue 1':'FRA','Eredivisie':'NED'
+  };
+  document.getElementById('spTabs').innerHTML = leagues.map(lg =>
+    `<span class="sp-tab${lg===spCurrentLeague?' active':''}"
+      onclick="spSwitchLeague('${lg}')">${abbr[lg]||lg}</span>`
+  ).join('');
+}
+
+function spSwitchLeague(league) {
+  spCurrentLeague = league;
+  renderSpTabs();
+  renderSpTable(league);
+}
+
+function renderSpTable(league) {
+  const table  = getLeagueTable(league);
+  const cfg    = LEAGUE_ZONE_CFG[league] || {};
+  const jornada = getLeagueJornada(league);
+  const home   = document.getElementById('home') ? document.getElementById('home').value : null;
+  const away   = document.getElementById('away') ? document.getElementById('away').value : null;
+
+  // Cabeçalho jornada
+  const jBadge = `<div class="sp-jornada-badge">
+    <span>Jornada <strong>${jornada}</strong></span>
+    <span style="color:var(--accent2);cursor:pointer;font-size:9px" onclick="openStandingsModal('${league}')">✏ Editar</span>
+  </div>`;
+
+  // Tabela
+  const rows = table.map(t => {
+    const zone = getZoneFromPos(t.pos, cfg);
+    const rowCls = ZONE_ROW_CLASS[zone] || '';
+    const dotCls = ZONE_DOT_CLASS[zone] || '';
+    const isSel  = (t.name === home || t.name === away);
+    const form5  = (t.form5 || 'NNNNN').split('');
+    const formHtml = form5.map(c =>
+      c==='W'?`<span class="sf-w">W</span>`:
+      c==='D'?`<span class="sf-d">D</span>`:
+      c==='L'?`<span class="sf-l">L</span>`:
+      `<span style="width:10px;height:10px;display:inline-block"></span>`
+    ).join('');
+
+    return `<tr class="${rowCls}" title="${t.name} — ${t.pts}pts | ${t.gf}GM ${t.ga}GS | xG ${(t.xgAtt||0).toFixed(2)}">
+      <td class="st-pos">${t.pos}</td>
+      <td><div style="display:flex;align-items:center;gap:4px">
+        ${dotCls?`<span class="zone-dot ${dotCls}"></span>`:'<span style="width:6px"></span>'}
+        <span class="st-name${isSel?' selected':''}">${t.name}</span>
+      </div></td>
+      <td class="r">${t.gf||0}</td>
+      <td class="r">${t.ga||0}</td>
+      <td class="r st-pts">${t.pts||0}</td>
+      <td><div class="st-form">${formHtml}</div></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('spBody').innerHTML = `
+    ${jBadge}
+    <table class="st-table">
+      <thead><tr>
+        <th style="width:16px">#</th>
+        <th>Equipa</th>
+        <th class="r">GM</th>
+        <th class="r">GS</th>
+        <th class="r">Pts</th>
+        <th>Forma</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="margin-top:8px;padding:6px 8px;background:var(--bg3);border-radius:4px;font-size:9px;color:var(--text3);line-height:1.6">
+      <span style="color:var(--accent)">◆</span> CL &nbsp;
+      <span style="color:var(--green)">◆</span> EL &nbsp;
+      <span style="color:var(--teal)">◆</span> ECL &nbsp;
+      <span style="color:var(--amber)">◆</span> PO &nbsp;
+      <span style="color:var(--red)">◆</span> DESC
+    </div>`;
+}
+
+/* Jornada guardada por liga */
+function getLeagueJornada(league) {
+  try {
+    const meta = JSON.parse(localStorage.getItem(SP_META_KEY) || '{}');
+    return (meta.jornadas || {})[league] || '—';
+  } catch(e) { return '—'; }
+}
+function setLeagueJornada(league, j) {
+  try {
+    const meta = JSON.parse(localStorage.getItem(SP_META_KEY) || '{}');
+    if (!meta.jornadas) meta.jornadas = {};
+    meta.jornadas[league] = j;
+    localStorage.setItem(SP_META_KEY, JSON.stringify(meta));
+  } catch(e) {}
+}
+
+function updateSpLastUpdate() {
+  const meta = getStorageMeta();
+  const el   = document.getElementById('spLastUpdate');
+  if (!el) return;
+  if (meta.ts) {
+    const d = new Date(meta.ts);
+    el.textContent = `Actualizado: ${d.toLocaleDateString('pt')} ${d.toLocaleTimeString('pt',{hour:'2-digit',minute:'2-digit'})}`;
+  } else {
+    el.textContent = 'Dados base 2025/26';
+  }
+}
+
+/* ── Modal de edição de resultados ─────────────────── */
+let spEditLeague = null;
+
+function openStandingsModal(league) {
+  spEditLeague = league;
+  const table = getLeagueTable(league);
+  const cfg   = LEAGUE_ZONE_CFG[league] || {};
+  const j     = getLeagueJornada(league);
+
+  document.getElementById('spModalTitle').textContent = `Actualizar — ${league}`;
+
+  const rows = table.map(t => {
+    const zone = getZoneFromPos(t.pos, cfg);
+    const dotCls = ZONE_DOT_CLASS[zone] || '';
+    return `<div class="sp-edit-row" data-team="${t.name}">
+      <span style="font-size:10px;color:var(--text3);text-align:center">${t.pos}</span>
+      <span style="font-size:11px;font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.name}">
+        ${dotCls?`<span class="zone-dot ${dotCls}" style="margin-right:3px;display:inline-block"></span>`:''}${t.name}
+      </span>
+      <input type="number" min="0" max="200" value="${t.gf||0}" placeholder="GM" data-field="gf" title="Golos Marcados">
+      <input type="number" min="0" max="200" value="${t.ga||0}" placeholder="GS" data-field="ga" title="Golos Sofridos">
+      <input type="number" min="0" max="114" value="${t.pts||0}" placeholder="Pts" data-field="pts" title="Pontos">
+      <input type="number" min="0" max="38"  value="${t.gp||31}" placeholder="J" data-field="gp" title="Jogos">
+    </div>`;
+  }).join('');
+
+  document.getElementById('spModalBody').innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border)">
+      <label style="font-size:11px;color:var(--text2)">Jornada actual:</label>
+      <input type="number" id="spEditJornada" min="1" max="38" value="${j||33}"
+        style="width:60px;padding:4px 8px;border:1px solid var(--border2);border-radius:4px;background:var(--bg3);color:var(--text);font-size:12px">
+      <span style="font-size:10px;color:var(--text3)">Actualiza todas as zonas automaticamente</span>
+    </div>
+    <div style="display:grid;grid-template-columns:20px 1fr 44px 44px 44px 44px;gap:4px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border)">
+      <span style="font-size:9px;color:var(--text3);text-align:center">#</span>
+      <span style="font-size:9px;color:var(--text3)">Equipa</span>
+      <span style="font-size:9px;color:var(--text3);text-align:center">GM</span>
+      <span style="font-size:9px;color:var(--text3);text-align:center">GS</span>
+      <span style="font-size:9px;color:var(--text3);text-align:center">Pts</span>
+      <span style="font-size:9px;color:var(--text3);text-align:center">J</span>
+    </div>
+    ${rows}`;
+
+  document.getElementById('spModal').style.display = 'flex';
+}
+
+function closeStandingsModal() {
+  document.getElementById('spModal').style.display = 'none';
+  spEditLeague = null;
+}
+
+function saveStandingsEdit() {
+  if (!spEditLeague) return;
+  const rows = document.querySelectorAll('#spModalBody .sp-edit-row');
+  const jornada = +document.getElementById('spEditJornada').value || 33;
+  setLeagueJornada(spEditLeague, jornada);
+
+  if (!SP_DATA[spEditLeague]) SP_DATA[spEditLeague] = {};
+
+  // Recolher valores editados
+  const newPts = [];
+  rows.forEach(row => {
+    const team = row.dataset.team;
+    const gf  = +row.querySelector('[data-field="gf"]').value;
+    const ga  = +row.querySelector('[data-field="ga"]').value;
+    const pts = +row.querySelector('[data-field="pts"]').value;
+    const gp  = +row.querySelector('[data-field="gp"]').value;
+    if (!SP_DATA[spEditLeague][team]) SP_DATA[spEditLeague][team] = {};
+    SP_DATA[spEditLeague][team].gf  = gf;
+    SP_DATA[spEditLeague][team].ga  = ga;
+    SP_DATA[spEditLeague][team].pts = pts;
+    SP_DATA[spEditLeague][team].gp  = gp;
+    newPts.push({ team, pts, gf, ga });
+  });
+
+  // Re-ordenar posições automaticamente por pontos (depois DG)
+  newPts.sort((a,b) => b.pts - a.pts || (b.gf-b.ga) - (a.gf-a.ga));
+  newPts.forEach((t, i) => {
+    SP_DATA[spEditLeague][t.team].pos = i + 1;
+    // Actualizar também xgAtt/xgDef estimados com base em GS/GA / GP
+    const gp = SP_DATA[spEditLeague][t.team].gp || jornada;
+    const cfg = LEAGUE_ZONE_CFG[spEditLeague];
+    const newZone = getZoneFromPos(i+1, cfg || {});
+    const zoneToModel = { cl:'champions', el:'europa_el', ecl:'conference', releg:'relegation', po:'playoff_releg', mid:'mid' };
+    SP_DATA[spEditLeague][t.team].zone = zoneToModel[newZone] || 'mid';
+  });
+
+  saveStandingsToStorage();
+  closeStandingsModal();
+  renderSpTable(spEditLeague);
+  onTeamChange(); // re-preencher formulário com posições actualizadas
+}
+
+/* ── Actualização com resultado de jogo único ──────── */
+function updateMatchResult(league, homeTeam, awayTeam, golosH, golosA) {
+  if (!SP_DATA[league]) return;
+  const dh = SP_DATA[league][homeTeam];
+  const da = SP_DATA[league][awayTeam];
+  if (!dh || !da) return;
+
+  // Actualizar golos
+  dh.gf = (dh.gf||0) + golosH;
+  dh.ga = (dh.ga||0) + golosA;
+  da.gf = (da.gf||0) + golosA;
+  da.ga = (da.ga||0) + golosH;
+
+  // Actualizar pontos
+  if (golosH > golosA)      { dh.pts = (dh.pts||0)+3; }
+  else if (golosH === golosA){ dh.pts = (dh.pts||0)+1; da.pts = (da.pts||0)+1; }
+  else                        { da.pts = (da.pts||0)+3; }
+
+  // Actualizar forma (últimos 5)
+  function pushForm(team, result) {
+    const d = SP_DATA[league][team];
+    const f = (d.form5 || '').split('').filter(Boolean);
+    f.unshift(result);
+    d.form5 = f.slice(0,5).join('');
+  }
+  if (golosH > golosA)      { pushForm(homeTeam,'W'); pushForm(awayTeam,'L'); }
+  else if (golosH === golosA){ pushForm(homeTeam,'D'); pushForm(awayTeam,'D'); }
+  else                        { pushForm(homeTeam,'L'); pushForm(awayTeam,'W'); }
+
+  // Re-ordenar posições
+  reorderLeague(league);
+  saveStandingsToStorage();
+  if (spCurrentLeague === league) renderSpTable(league);
+  onTeamChange();
+}
+
+function reorderLeague(league) {
+  if (!SP_DATA[league]) return;
+  const sorted = Object.entries(SP_DATA[league])
+    .sort((a,b) => (b[1].pts||0)-(a[1].pts||0) || ((b[1].gf||0)-(b[1].ga||0)) - ((a[1].gf||0)-(a[1].ga||0)));
+  sorted.forEach(([team], i) => {
+    SP_DATA[league][team].pos = i+1;
+    const cfg = LEAGUE_ZONE_CFG[league];
+    if (cfg) {
+      const z = getZoneFromPos(i+1, cfg);
+      const map = { cl:'champions', el:'europa_el', ecl:'conference', releg:'relegation', po:'playoff_releg', mid:'mid' };
+      SP_DATA[league][team].zone = map[z] || 'mid';
+    }
+  });
+}
+
+/* ── Botão de actualização (re-sincroniza com STANDINGS_REAL como base) */
+function triggerStandingsUpdate() {
+  if (!fdApiKey) {
+    openStandingsModal(spCurrentLeague);
+    return;
+  }
+  // Se estiver em localhost (servidor local) — fetch funciona
+  if (window.location.protocol === 'http:') {
+    fetchAndUpdateAll();
+    return;
+  }
+  // Se estiver em file:// — mostrar instrução
+  const btn = document.getElementById('spUpdateBtn');
+  setApiStatus('error', '✗ Abre via INICIAR_PLATAFORMA.py para actualizar');
+  document.getElementById('spLastUpdate').textContent =
+    'Corre INICIAR_PLATAFORMA.py e usa http://localhost:8765';
+}
+
+/* ── Códigos football-data.org v4 ──────────────────── */
+const FD_API_BASE = 'https://api.football-data.org/v4';
+const FD_CODES = {
+  'La Liga':'PD','Premier League':'PL','Bundesliga':'BL1',
+  'Serie A':'SA','Ligue 1':'FL1','Eredivisie':'DED','Liga Portugal':'PPL'
+};
+const FD_NAME_MAP = {
+  'Real Madrid CF':'Real Madrid','FC Barcelona':'Barcelona',
+  'Club Atlético de Madrid':'Atlético Madrid','Villarreal CF':'Villarreal',
+  'Real Betis Balompié':'Real Betis','RC Celta de Vigo':'Celta Vigo',
+  'Real Sociedad de Fútbol':'Real Sociedad','Getafe CF':'Getafe',
+  'CA Osasuna':'Osasuna','RCD Espanyol de Barcelona':'Espanyol',
+  'Athletic Club':'Athletic Bilbao','Girona FC':'Girona',
+  'Rayo Vallecano de Madrid':'Rayo Vallecano','Valencia CF':'Valencia',
+  'RCD Mallorca':'Mallorca','Sevilla FC':'Sevilla',
+  'Deportivo Alavés':'Alavés','Elche CF':'Elche',
+  'Levante UD':'Levante','Real Oviedo':'Oviedo',
+  'Arsenal FC':'Arsenal','Chelsea FC':'Chelsea','Liverpool FC':'Liverpool',
+  'Manchester City FC':'Manchester City','Newcastle United FC':'Newcastle United',
+  'Tottenham Hotspur FC':'Tottenham Hotspur','Aston Villa FC':'Aston Villa',
+  'Fulham FC':'Fulham','Nottingham Forest FC':'Nottingham Forest',
+  'West Ham United FC':'West Ham United','Brighton & Hove Albion FC':'Brighton',
+  'Manchester United FC':'Manchester United','Brentford FC':'Brentford',
+  'Crystal Palace FC':'Crystal Palace','AFC Bournemouth':'Bournemouth',
+  'Wolverhampton Wanderers FC':'Wolverhampton','Everton FC':'Everton',
+  'Leeds United FC':'Leeds United','Burnley FC':'Burnley','Sunderland AFC':'Sunderland',
+  'FC Bayern München':'Bayern München','Bayer 04 Leverkusen':'Leverkusen',
+  'Borussia Dortmund':'Borussia Dortmund','Eintracht Frankfurt':'Eintracht Frankfurt',
+  'VfB Stuttgart':'Stuttgart','RB Leipzig':'RB Leipzig','VfL Wolfsburg':'Wolfsburg',
+  'TSG 1899 Hoffenheim':'Hoffenheim','Borussia Mönchengladbach':'Borussia Mönchengladbach',
+  'FC Augsburg':'Augsburg','1. FSV Mainz 05':'Mainz','SV Werder Bremen':'Werder Bremen',
+  'Sport-Club Freiburg':'Freiburg','1. FC Union Berlin':'Union Berlin',
+  '1. FC Heidenheim 1846':'Heidenheim','Holstein Kiel':'Holstein Kiel',
+  'FC St. Pauli 1910':'St. Pauli','VfL Bochum 1848':'Bochum',
+  'FC Internazionale Milano':'Inter Milan','SSC Napoli':'Napoli',
+  'Atalanta BC':'Atalanta','Juventus FC':'Juventus','AC Milan':'AC Milan',
+  'SS Lazio':'Lazio','AS Roma':'Roma','ACF Fiorentina':'Fiorentina',
+  'Bologna FC 1909':'Bologna','Torino FC':'Torino','Empoli FC':'Empoli',
+  'Hellas Verona FC':'Hellas Verona','Genoa CFC':'Genoa','Udinese Calcio':'Udinese',
+  'Cagliari Calcio':'Cagliari','Como 1907':'Como','Parma Calcio 1913':'Parma',
+  'US Lecce':'Lecce','Venezia FC':'Venezia','AC Monza':'Monza',
+  'Paris Saint-Germain FC':'PSG','Olympique de Marseille':'Marseille',
+  'AS Monaco FC':'Monaco','Lille OSC':'Lille','Olympique Lyonnais':'Lyon',
+  'RC Lens':'Lens','OGC Nice':'Nice','Stade Rennais FC 1901':'Rennes',
+  'Stade Brestois 29':'Brest','RC Strasbourg Alsace':'Strasbourg',
+  'Toulouse FC':'Toulouse','AJ Auxerre':'Auxerre','FC Nantes':'Nantes',
+  'Stade de Reims':'Reims','Le Havre AC':'Havre','SCO Angers':'Angers',
+  'Montpellier HSC':'Montpellier',"AS Saint-Étienne":'Saint-Étienne',
+  'PSV Eindhoven':'PSV Eindhoven','AFC Ajax':'Ajax',
+  'Feyenoord Rotterdam':'Feyenoord','AZ Alkmaar':'AZ','NEC Nijmegen':'NEC',
+  'FC Twente':'Twente','FC Utrecht':'Utrecht','Sparta Rotterdam':'Sparta Rotterdam',
+  'Go Ahead Eagles':'Go Ahead Eagles','SC Heerenveen':'Heerenveen',
+  'NAC Breda':'NAC Breda','Heracles Almelo':'Heracles Almelo','PEC Zwolle':'PEC Zwolle',
+  'Fortuna Sittard':'Fortuna Sittard','FC Volendam':'Volendam',
+  'FC Groningen':'Groningen','Excelsior Rotterdam':'Excelsior','Telstar':'Telstar',
+  'Sport Lisboa e Benfica':'Benfica','FC do Porto':'Porto','Sporting CP':'Sporting CP',
+  'SC Braga':'Braga','Vitória SC':'Vitória Guimarães','CD Santa Clara':'Santa Clara',
+  'FC Famalicão':'Famalicão','GD Estoril Praia':'Estoril Praia',
+  'Casa Pia AC':'Casa Pia','Moreirense FC':'Moreirense','Rio Ave FC':'Rio Ave',
+  'Gil Vicente FC':'Gil Vicente','CD Nacional':'Nacional','FC Arouca':'Arouca',
+  'CF Estrela da Amadora':'Estrela da Amadora','CD Tondela':'Tondela',
+  'FC Alverca':'Alverca','AVS Futebol SAD':'AVS',
+};
+function mapName(n){ return FD_NAME_MAP[n]||n; }
+
+/* ── Gestão da API Key ─────────────────────────────── */
+const FD_KEY_STORAGE = 'footvalue_fd_apikey';
+const FD_DEFAULT_KEY = '12ce442a7ffe44ec96d1e3d6313cfa54';
+let fdApiKey = '';
+let spAutoRefreshTimer = null;
+
+function loadApiKey() {
+  // Usar sempre a chave pré-configurada
+  fdApiKey = localStorage.getItem(FD_KEY_STORAGE) || FD_DEFAULT_KEY;
+  localStorage.setItem(FD_KEY_STORAGE, fdApiKey);
+  const inp = document.getElementById('spApiKey');
+  if(inp) inp.value = '••••••••••••••••••••••••••••••••';
+  setApiStatus('valid','✓ API conectada — football-data.org');
+}
+function onApiKeyChange(val) {
+  fdApiKey = val.trim();
+  if(fdApiKey.length > 20){
+    localStorage.setItem(FD_KEY_STORAGE, fdApiKey);
+    setApiStatus('valid','✓ Guardada — clica Actualizar');
+  } else if(!fdApiKey){
+    localStorage.removeItem(FD_KEY_STORAGE);
+    setApiStatus('','');
+    document.getElementById('spLastUpdate').textContent='Sem chave API — dados locais';
+  } else { setApiStatus('warn','⚠ Chave incompleta'); }
+}
+function toggleApiKeyVis(){
+  const i=document.getElementById('spApiKey');
+  i.type=i.type==='password'?'text':'password';
+}
+function setApiStatus(type,msg){
+  const el=document.getElementById('spApiStatus');
+  if(!el)return;
+  const c={valid:'var(--green)',warn:'var(--amber)',error:'var(--red)',loading:'var(--accent2)','':'var(--text3)'};
+  el.style.color=c[type]||'var(--text3)'; el.textContent=msg;
+}
+
+/* ── Fetch com múltiplas estratégias anti-CORS ─────── */
+async function fetchOneLeague(league) {
+  const code = FD_CODES[league];
+  if(!code || !fdApiKey) return null;
+  const url = `https://api.football-data.org/v4/competitions/${code}/standings`;
+
+  // Estratégia 1: fetch directo (funciona quando servido via http://)
+  try {
+    const res = await fetch(url, {
+      headers: { 'X-Auth-Token': fdApiKey },
+      mode: 'cors'
+    });
+    if(res.status === 401){ setApiStatus('error','✗ API Key inválida'); return null; }
+    if(res.status === 403){ setApiStatus('error',`✗ ${league} não disponível no plano`); return null; }
+    if(res.ok) return await res.json();
+  } catch(e) { /* CORS bloqueado — tentar proxy */ }
+
+  // Estratégia 2: proxy CORS público (allorigins.win)
+  try {
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url + '?token=' + fdApiKey)}`;
+    const res2 = await fetch(proxyUrl);
+    if(res2.ok){
+      const wrapper = await res2.json();
+      if(wrapper.contents){
+        const data = JSON.parse(wrapper.contents);
+        if(data.standings) return data;
+      }
+    }
+  } catch(e) { /* proxy falhou — tentar Claude */ }
+
+  // Estratégia 3: Claude API como proxy inteligente
+  try {
+    const prompt = `Fetch the football-data.org API and return ONLY raw JSON, no explanation.
+URL: ${url}
+Header: X-Auth-Token: ${fdApiKey}
+Return the complete JSON response for the standings endpoint.
+IMPORTANT: Return ONLY valid JSON starting with { and nothing else.`;
+
+    const res3 = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 8000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    if(res3.ok){
+      const msg = await res3.json();
+      const text = (msg.content||[]).map(b=>b.text||'').join('');
+      // Extrair JSON da resposta
+      const match = text.match(/\{[\s\S]*\}/);
+      if(match){
+        const data = JSON.parse(match[0]);
+        if(data.standings) return data;
+      }
+    }
+  } catch(e) { /* Claude também falhou */ }
+
+  setApiStatus('error', '✗ Sem ligação à API — usar dados locais');
+  return null;
+}
+
+function parseApiData(apiData, league) {
+  const rows = apiData?.standings?.find(s=>s.type==='TOTAL')?.table;
+  if(!rows) return null;
+  const cfg = LEAGUE_ZONE_CFG[league]||{};
+  const out = {};
+  rows.forEach(r => {
+    const name  = mapName(r.team?.name||'');
+    const pos   = r.position;
+    const zone  = getZoneFromPos(pos, cfg);
+    const zmap  = {cl:'champions',el:'europa_el',ecl:'conference',releg:'relegation',po:'playoff_releg',mid:'mid'};
+    const form5 = (r.form||'').split(',').slice(0,5).map(x=>x==='W'?'W':x==='D'?'D':'L').join('');
+    const base  = (SP_DATA[league]||{})[name] || (STANDINGS_REAL[league]||{})[name]||{};
+    out[name] = {
+      pos, pts:r.points, gf:r.goalsFor, ga:r.goalsAgainst,
+      gp:r.playedGames, w:r.won, d:r.draw, l:r.lost, form5,
+      zone: zmap[zone]||'mid',
+      xgAtt: base.xgAtt||1.20, xgDef: base.xgDef||1.20,
+    };
+  });
+  return out;
+}
+
+/* ── Actualização de todas as ligas ────────────────── */
+/* ── ACTUALIZAÇÃO VIA CLAUDE — única estratégia fiável ── */
+async function fetchAndUpdateAll() {
+  const btn = document.getElementById('spUpdateBtn');
+  btn.classList.add('loading'); btn.textContent='↻ A sincronizar…';
+  setApiStatus('loading','⟳ A buscar dados ao Sofascore…');
+
+  try {
+    // Chama o servidor local Python que vai ao Sofascore
+    const res = await fetch('/actualizar', { cache: 'no-store' });
+
+    if (!res.ok) {
+      setApiStatus('error', `✗ Erro servidor: ${res.status}`);
+      btn.classList.remove('loading'); btn.textContent='↻ Actualizar';
+      return;
+    }
+
+    const json = await res.json();
+    const { ok, falhas, data, hoje } = json;
+
+    if (!ok || !data) {
+      setApiStatus('error','✗ Sem dados do Sofascore');
+      btn.classList.remove('loading'); btn.textContent='↻ Actualizar';
+      return;
+    }
+
+    // Mapeamento de zonas
+    const ZCFG = {
+      'La Liga':        {cl:4,el:1,ecl:1,po:0,releg:3,total:20},
+      'Premier League': {cl:4,el:1,ecl:1,po:0,releg:3,total:20},
+      'Bundesliga':     {cl:4,el:1,ecl:1,po:1,releg:2,total:18},
+      'Serie A':        {cl:4,el:1,ecl:1,po:0,releg:3,total:20},
+      'Ligue 1':        {cl:3,el:1,ecl:1,po:1,releg:2,total:18},
+      'Eredivisie':     {cl:2,el:1,ecl:2,po:1,releg:2,total:18},
+      'Liga Portugal':  {cl:1,el:1,ecl:1,po:1,releg:3,total:18},
+    };
+
+    // Processar cada liga recebida
+    Object.entries(data).forEach(([liga, info]) => {
+      if (!info || !info.equipas) return;
+      if (!SP_DATA[liga]) SP_DATA[liga] = {};
+      info.equipas.forEach(e => {
+        const base = (STANDINGS_REAL[liga]||{})[e.nome] || {};
+        SP_DATA[liga][e.nome] = {
+          pos:   e.pos,
+          pts:   e.pts,
+          gf:    e.gf,
+          ga:    e.ga,
+          gp:    e.gp,
+          w:     e.w,
+          d:     e.d,
+          l:     e.l,
+          form5: (e.form5||'?????').substring(0,5),
+          zone:  e.zone,
+          xgAtt: base.xgAtt || 1.20,
+          xgDef: base.xgDef || 1.20,
+        };
+      });
+      if (info.jornada) setLeagueJornada(liga, info.jornada);
+    });
+
+    saveStandingsToStorage();
+    document.getElementById('spLastUpdate').textContent =
+      `Sofascore: ${hoje} · ${ok} liga${ok!==1?'s':''} actualizadas`;
+    setApiStatus('valid', `✓ ${ok} liga${ok!==1?'s':''} actualizadas`);
+    if (falhas && falhas.length > 0) {
+      setApiStatus('warn', `✓ ${ok} ok · ✗ ${falhas.length} falha${falhas.length>1?'s':''}: ${falhas.join(', ')}`);
+    }
+    renderStandingsPanel();
+    onTeamChange();
+
+  } catch(err) {
+    setApiStatus('error', `✗ ${err.message} — usa INICIAR_PLATAFORMA.py`);
+  }
+
+  btn.classList.remove('loading'); btn.textContent='↻ Actualizar';
+}
+
+/* ── Painel de registo rápido de resultado ─────────── */
+function renderQuickResultWidget() {
+  const existing = document.getElementById('quickResultWidget');
+  if (existing) return;
+  const panel = document.querySelector('.sidebar-bottom');
+  if (!panel) return;
+  panel.insertAdjacentHTML('beforebegin', `
+    <div style="padding:10px 14px;border-top:1px solid var(--border)">
+      <div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Registar resultado manual</div>
+      <select id="qrLeague" style="width:100%;font-size:10px;padding:3px;margin-bottom:5px;background:var(--bg3);color:var(--text);border:1px solid var(--border2);border-radius:4px">
+        ${Object.keys(STANDINGS_REAL).map(l=>`<option>${l}</option>`).join('')}
+      </select>
+      <div style="display:grid;grid-template-columns:1fr 24px 1fr;gap:3px;margin-bottom:5px;align-items:center">
+        <select id="qrHome" style="font-size:10px;padding:3px;background:var(--bg3);color:var(--text);border:1px solid var(--border2);border-radius:4px"></select>
+        <span style="text-align:center;font-size:10px;color:var(--text3)">vs</span>
+        <select id="qrAway" style="font-size:10px;padding:3px;background:var(--bg3);color:var(--text);border:1px solid var(--border2);border-radius:4px"></select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 20px 1fr;gap:3px;margin-bottom:6px;align-items:center">
+        <input type="number" id="qrGoalsH" min="0" max="20" value="0"
+          style="font-size:12px;font-weight:700;text-align:center;padding:3px;background:var(--bg3);color:var(--text);border:1px solid var(--border2);border-radius:4px">
+        <span style="text-align:center;font-size:10px;color:var(--text3)">—</span>
+        <input type="number" id="qrGoalsA" min="0" max="20" value="0"
+          style="font-size:12px;font-weight:700;text-align:center;padding:3px;background:var(--bg3);color:var(--text);border:1px solid var(--border2);border-radius:4px">
+      </div>
+      <button onclick="submitQuickResult()" id="qrBtn"
+        style="width:100%;padding:5px;font-size:10px;font-weight:700;background:var(--accent);color:white;border:none;border-radius:4px;cursor:pointer">
+        ✓ Actualizar tabela
+      </button>
+      <div id="qrMsg" style="font-size:9px;color:var(--green);margin-top:4px;text-align:center;min-height:12px"></div>
+    </div>`);
+  document.getElementById('qrLeague').onchange = updateQrTeams;
+  updateQrTeams();
+}
+
+function updateQrTeams() {
+  const league = document.getElementById('qrLeague').value;
+  const teams  = LEAGUES[league]||[];
+  document.getElementById('qrHome').innerHTML = teams.map((n,i)=>`<option${i===0?' selected':''}>${n}</option>`).join('');
+  document.getElementById('qrAway').innerHTML = teams.map((n,i)=>`<option${i===1?' selected':''}>${n}</option>`).join('');
+}
+
+function submitQuickResult() {
+  const league=document.getElementById('qrLeague').value;
+  const home=document.getElementById('qrHome').value;
+  const away=document.getElementById('qrAway').value;
+  const gh=+document.getElementById('qrGoalsH').value;
+  const ga=+document.getElementById('qrGoalsA').value;
+  if(home===away){document.getElementById('qrMsg').textContent='Equipas iguais!';return;}
+  updateMatchResult(league,home,away,gh,ga);
+  const res=gh>ga?`${home} ganhou`:gh===ga?'Empate':`${away} ganhou`;
+  document.getElementById('qrMsg').textContent=`✓ ${gh}-${ga} · ${res}`;
+  document.getElementById('qrGoalsH').value=0;
+  document.getElementById('qrGoalsA').value=0;
+  spCurrentLeague=league; renderStandingsPanel();
+  setTimeout(()=>{document.getElementById('qrMsg').textContent='';},3000);
+}
+
+/* ── Inicialização ─────────────────────────────────── */
+function initStandingsPanel() {
+  initStandingsData();
+  loadApiKey();
+  renderStandingsPanel();
+  renderQuickResultWidget();
+  // Auto-actualizar de 30 em 30 minutos se tiver API key
+  spAutoRefreshTimer = setInterval(()=>{
+    if(fdApiKey){ console.log('[Agente Classificações] Auto-refresh…'); fetchAndUpdateAll(); }
+  }, 30*60*1000);
+  // Sincronizar tab do painel com a liga do formulário
+  document.getElementById('league').addEventListener('change',()=>{
+    spCurrentLeague=document.getElementById('league').value;
+    renderStandingsPanel();
+  });
+  // Se tiver API key guardada, actualizar logo ao abrir
+  if(fdApiKey){ setTimeout(()=>fetchAndUpdateAll(), 1500); }
+}
+
+updateTeams();
+initStandingsPanel();
+</script>
+</body>
+</html>
